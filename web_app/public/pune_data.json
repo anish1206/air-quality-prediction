@@ -1,0 +1,86 @@
+[
+  {
+    "offset": -3,
+    "label": "T-3",
+    "us_aqi": 108.38,
+    "pm2_5": 37.14,
+    "pm10": 59.93,
+    "nitrogen_dioxide": 9.32,
+    "temp_max": 30.95,
+    "temp_min": 17.95,
+    "wind_speed_max": 12.98,
+    "isObserved": true
+  },
+  {
+    "offset": -2,
+    "label": "T-2",
+    "us_aqi": 100.83,
+    "pm2_5": 45.53,
+    "pm10": 46.30,
+    "nitrogen_dioxide": 10.05,
+    "temp_max": 29.45,
+    "temp_min": 16.55,
+    "wind_speed_max": 14.89,
+    "isObserved": true
+  },
+  {
+    "offset": -1,
+    "label": "T-1",
+    "us_aqi": 98.83,
+    "pm2_5": 36.44,
+    "pm10": 39.60,
+    "nitrogen_dioxide": 10.57,
+    "temp_max": 27.40,
+    "temp_min": 12.30,
+    "wind_speed_max": 13.06,
+    "isObserved": true
+  },
+  {
+    "offset": 0,
+    "label": "T",
+    "us_aqi": 85.21,
+    "pm2_5": 28.50,
+    "pm10": 43.82,
+    "nitrogen_dioxide": 20.63,
+    "temp_max": 34.90,
+    "temp_min": 18.35,
+    "wind_speed_max": 12.10,
+    "isObserved": true
+  },
+  {
+    "offset": 1,
+    "label": "T+1",
+    "us_aqi": 82.12,
+    "pm2_5": 27.10,
+    "pm10": 41.50,
+    "nitrogen_dioxide": 18.40,
+    "temp_max": 33.50,
+    "temp_min": 18.00,
+    "wind_speed_max": 13.50,
+    "isObserved": false
+  },
+  {
+    "offset": 2,
+    "label": "T+2",
+    "us_aqi": 84.57,
+    "pm2_5": 28.20,
+    "pm10": 42.80,
+    "nitrogen_dioxide": 19.10,
+    "temp_max": 32.80,
+    "temp_min": 17.50,
+    "wind_speed_max": 14.20,
+    "isObserved": false
+  },
+  {
+    "offset": 3,
+    "label": "T+3",
+    "us_aqi": 83.52,
+    "pm2_5": 27.80,
+    "pm10": 42.10,
+    "nitrogen_dioxide": 18.90,
+    "temp_max": 33.10,
+    "temp_min": 17.80,
+    "wind_speed_max": 13.80,
+    "isObserved": false
+  }
+]
