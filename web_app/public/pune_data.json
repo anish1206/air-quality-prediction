@@ -1,86 +1,93 @@
-[
+﻿[
   {
-    "offset": -3,
-    "label": "T-3",
-    "us_aqi": 108.38,
-    "pm2_5": 37.14,
-    "pm10": 59.93,
-    "nitrogen_dioxide": 9.32,
-    "temp_max": 30.95,
-    "temp_min": 17.95,
-    "wind_speed_max": 12.98,
-    "isObserved": true
+    "offset": -3, "label": "T-3", "date_str": "Aug 6",
+    "us_aqi": 108.38, "pm2_5": 37.14, "pm10": 59.93, "nitrogen_dioxide": 9.32,
+    "temp_max": 30.95, "temp_min": 17.95, "wind_speed_max": 12.98, "isObserved": true,
+    "sub_daily": [
+      { "time": "00:00", "date_str": "Aug 6", "us_aqi": 118.2, "pm2_5": 42.1, "pm10": 67.3, "nitrogen_dioxide": 11.2, "wind_speed": 4.2, "wind_dir": 220, "temp": 19.1 },
+      { "time": "04:00", "date_str": "Aug 6", "us_aqi": 122.5, "pm2_5": 44.8, "pm10": 70.1, "nitrogen_dioxide": 12.1, "wind_speed": 3.8, "wind_dir": 205, "temp": 18.2 },
+      { "time": "08:00", "date_str": "Aug 6", "us_aqi": 115.3, "pm2_5": 39.6, "pm10": 63.4, "nitrogen_dioxide": 13.8, "wind_speed": 6.5, "wind_dir": 245, "temp": 22.4 },
+      { "time": "12:00", "date_str": "Aug 6", "us_aqi": 98.4, "pm2_5": 31.2, "pm10": 52.8, "nitrogen_dioxide": 7.9, "wind_speed": 18.2, "wind_dir": 280, "temp": 29.8 },
+      { "time": "16:00", "date_str": "Aug 6", "us_aqi": 94.1, "pm2_5": 28.9, "pm10": 49.7, "nitrogen_dioxide": 6.4, "wind_speed": 21.4, "wind_dir": 295, "temp": 30.9 },
+      { "time": "20:00", "date_str": "Aug 6", "us_aqi": 110.8, "pm2_5": 38.4, "pm10": 61.2, "nitrogen_dioxide": 10.1, "wind_speed": 9.1, "wind_dir": 255, "temp": 25.3 }
+    ]
   },
   {
-    "offset": -2,
-    "label": "T-2",
-    "us_aqi": 100.83,
-    "pm2_5": 45.53,
-    "pm10": 46.30,
-    "nitrogen_dioxide": 10.05,
-    "temp_max": 29.45,
-    "temp_min": 16.55,
-    "wind_speed_max": 14.89,
-    "isObserved": true
+    "offset": -2, "label": "T-2", "date_str": "Aug 7",
+    "us_aqi": 100.83, "pm2_5": 45.53, "pm10": 46.30, "nitrogen_dioxide": 10.05,
+    "temp_max": 29.45, "temp_min": 16.55, "wind_speed_max": 14.89, "isObserved": true,
+    "sub_daily": [
+      { "time": "00:00", "date_str": "Aug 7", "us_aqi": 109.4, "pm2_5": 49.2, "pm10": 51.8, "nitrogen_dioxide": 12.3, "wind_speed": 5.1, "wind_dir": 210, "temp": 18.0 },
+      { "time": "04:00", "date_str": "Aug 7", "us_aqi": 113.1, "pm2_5": 51.6, "pm10": 54.2, "nitrogen_dioxide": 13.1, "wind_speed": 4.4, "wind_dir": 198, "temp": 17.2 },
+      { "time": "08:00", "date_str": "Aug 7", "us_aqi": 106.7, "pm2_5": 47.3, "pm10": 49.1, "nitrogen_dioxide": 14.6, "wind_speed": 7.8, "wind_dir": 238, "temp": 21.1 },
+      { "time": "12:00", "date_str": "Aug 7", "us_aqi": 91.2, "pm2_5": 38.4, "pm10": 39.8, "nitrogen_dioxide": 8.2, "wind_speed": 19.6, "wind_dir": 272, "temp": 28.4 },
+      { "time": "16:00", "date_str": "Aug 7", "us_aqi": 87.9, "pm2_5": 36.1, "pm10": 37.5, "nitrogen_dioxide": 6.9, "wind_speed": 22.8, "wind_dir": 288, "temp": 29.4 },
+      { "time": "20:00", "date_str": "Aug 7", "us_aqi": 103.2, "pm2_5": 44.8, "pm10": 47.1, "nitrogen_dioxide": 9.8, "wind_speed": 10.3, "wind_dir": 248, "temp": 24.1 }
+    ]
   },
   {
-    "offset": -1,
-    "label": "T-1",
-    "us_aqi": 98.83,
-    "pm2_5": 36.44,
-    "pm10": 39.60,
-    "nitrogen_dioxide": 10.57,
-    "temp_max": 27.40,
-    "temp_min": 12.30,
-    "wind_speed_max": 13.06,
-    "isObserved": true
+    "offset": -1, "label": "T-1", "date_str": "Aug 8",
+    "us_aqi": 98.83, "pm2_5": 36.44, "pm10": 39.60, "nitrogen_dioxide": 10.57,
+    "temp_max": 27.40, "temp_min": 12.30, "wind_speed_max": 13.06, "isObserved": true,
+    "sub_daily": [
+      { "time": "00:00", "date_str": "Aug 8", "us_aqi": 106.2, "pm2_5": 39.8, "pm10": 44.2, "nitrogen_dioxide": 12.8, "wind_speed": 4.8, "wind_dir": 230, "temp": 14.1 },
+      { "time": "04:00", "date_str": "Aug 8", "us_aqi": 110.4, "pm2_5": 42.1, "pm10": 46.8, "nitrogen_dioxide": 13.6, "wind_speed": 4.1, "wind_dir": 215, "temp": 13.2 },
+      { "time": "08:00", "date_str": "Aug 8", "us_aqi": 103.8, "pm2_5": 38.2, "pm10": 41.5, "nitrogen_dioxide": 15.2, "wind_speed": 6.9, "wind_dir": 250, "temp": 18.8 },
+      { "time": "12:00", "date_str": "Aug 8", "us_aqi": 88.1, "pm2_5": 29.6, "pm10": 33.2, "nitrogen_dioxide": 8.6, "wind_speed": 17.4, "wind_dir": 275, "temp": 26.2 },
+      { "time": "16:00", "date_str": "Aug 8", "us_aqi": 84.3, "pm2_5": 27.1, "pm10": 31.4, "nitrogen_dioxide": 7.1, "wind_speed": 20.1, "wind_dir": 290, "temp": 27.4 },
+      { "time": "20:00", "date_str": "Aug 8", "us_aqi": 101.5, "pm2_5": 35.8, "pm10": 40.1, "nitrogen_dioxide": 9.9, "wind_speed": 8.6, "wind_dir": 260, "temp": 21.9 }
+    ]
   },
   {
-    "offset": 0,
-    "label": "T",
-    "us_aqi": 85.21,
-    "pm2_5": 28.50,
-    "pm10": 43.82,
-    "nitrogen_dioxide": 20.63,
-    "temp_max": 34.90,
-    "temp_min": 18.35,
-    "wind_speed_max": 12.10,
-    "isObserved": true
+    "offset": 0, "label": "T", "date_str": "Aug 9",
+    "us_aqi": 85.21, "pm2_5": 28.50, "pm10": 43.82, "nitrogen_dioxide": 20.63,
+    "temp_max": 34.90, "temp_min": 18.35, "wind_speed_max": 12.10, "isObserved": true,
+    "sub_daily": [
+      { "time": "00:00", "date_str": "Aug 9", "us_aqi": 92.4, "pm2_5": 31.2, "pm10": 48.1, "nitrogen_dioxide": 23.4, "wind_speed": 4.6, "wind_dir": 218, "temp": 20.1 },
+      { "time": "04:00", "date_str": "Aug 9", "us_aqi": 96.8, "pm2_5": 33.4, "pm10": 51.2, "nitrogen_dioxide": 25.1, "wind_speed": 3.9, "wind_dir": 202, "temp": 19.2 },
+      { "time": "08:00", "date_str": "Aug 9", "us_aqi": 90.1, "pm2_5": 29.8, "pm10": 46.4, "nitrogen_dioxide": 28.6, "wind_speed": 7.2, "wind_dir": 242, "temp": 24.8 },
+      { "time": "12:00", "date_str": "Aug 9", "us_aqi": 74.3, "pm2_5": 22.1, "pm10": 37.8, "nitrogen_dioxide": 16.2, "wind_speed": 16.8, "wind_dir": 278, "temp": 33.4 },
+      { "time": "16:00", "date_str": "Aug 9", "us_aqi": 70.8, "pm2_5": 20.4, "pm10": 35.9, "nitrogen_dioxide": 14.1, "wind_speed": 20.4, "wind_dir": 292, "temp": 34.9 },
+      { "time": "20:00", "date_str": "Aug 9", "us_aqi": 88.2, "pm2_5": 28.9, "pm10": 44.6, "nitrogen_dioxide": 19.8, "wind_speed": 8.8, "wind_dir": 252, "temp": 28.6 }
+    ]
   },
   {
-    "offset": 1,
-    "label": "T+1",
-    "us_aqi": 82.12,
-    "pm2_5": 27.10,
-    "pm10": 41.50,
-    "nitrogen_dioxide": 18.40,
-    "temp_max": 33.50,
-    "temp_min": 18.00,
-    "wind_speed_max": 13.50,
-    "isObserved": false
+    "offset": 1, "label": "T+1", "date_str": "Aug 10",
+    "us_aqi": 82.12, "pm2_5": 27.10, "pm10": 41.50, "nitrogen_dioxide": 18.40,
+    "temp_max": 33.50, "temp_min": 18.00, "wind_speed_max": 13.50, "isObserved": false,
+    "sub_daily": [
+      { "time": "00:00", "date_str": "Aug 10", "us_aqi": 89.3, "pm2_5": 29.8, "pm10": 46.2, "nitrogen_dioxide": 21.1, "wind_speed": 5.0, "wind_dir": 222, "temp": 19.8 },
+      { "time": "04:00", "date_str": "Aug 10", "us_aqi": 93.6, "pm2_5": 32.1, "pm10": 49.1, "nitrogen_dioxide": 22.8, "wind_speed": 4.2, "wind_dir": 208, "temp": 18.9 },
+      { "time": "08:00", "date_str": "Aug 10", "us_aqi": 87.4, "pm2_5": 28.2, "pm10": 44.3, "nitrogen_dioxide": 25.4, "wind_speed": 7.6, "wind_dir": 246, "temp": 23.6 },
+      { "time": "12:00", "date_str": "Aug 10", "us_aqi": 71.8, "pm2_5": 21.4, "pm10": 36.1, "nitrogen_dioxide": 15.2, "wind_speed": 17.9, "wind_dir": 276, "temp": 32.1 },
+      { "time": "16:00", "date_str": "Aug 10", "us_aqi": 68.4, "pm2_5": 19.8, "pm10": 34.2, "nitrogen_dioxide": 13.4, "wind_speed": 21.2, "wind_dir": 290, "temp": 33.5 },
+      { "time": "20:00", "date_str": "Aug 10", "us_aqi": 85.1, "pm2_5": 27.4, "pm10": 42.8, "nitrogen_dioxide": 18.2, "wind_speed": 9.4, "wind_dir": 256, "temp": 27.4 }
+    ]
   },
   {
-    "offset": 2,
-    "label": "T+2",
-    "us_aqi": 84.57,
-    "pm2_5": 28.20,
-    "pm10": 42.80,
-    "nitrogen_dioxide": 19.10,
-    "temp_max": 32.80,
-    "temp_min": 17.50,
-    "wind_speed_max": 14.20,
-    "isObserved": false
+    "offset": 2, "label": "T+2", "date_str": "Aug 11",
+    "us_aqi": 84.57, "pm2_5": 28.20, "pm10": 42.80, "nitrogen_dioxide": 19.10,
+    "temp_max": 32.80, "temp_min": 17.50, "wind_speed_max": 14.20, "isObserved": false,
+    "sub_daily": [
+      { "time": "00:00", "date_str": "Aug 11", "us_aqi": 91.6, "pm2_5": 31.0, "pm10": 47.8, "nitrogen_dioxide": 22.2, "wind_speed": 5.3, "wind_dir": 225, "temp": 19.2 },
+      { "time": "04:00", "date_str": "Aug 11", "us_aqi": 95.9, "pm2_5": 33.2, "pm10": 50.4, "nitrogen_dioxide": 23.9, "wind_speed": 4.6, "wind_dir": 211, "temp": 18.4 },
+      { "time": "08:00", "date_str": "Aug 11", "us_aqi": 89.8, "pm2_5": 29.4, "pm10": 45.6, "nitrogen_dioxide": 26.8, "wind_speed": 8.1, "wind_dir": 249, "temp": 22.9 },
+      { "time": "12:00", "date_str": "Aug 11", "us_aqi": 73.4, "pm2_5": 22.8, "pm10": 37.4, "nitrogen_dioxide": 15.8, "wind_speed": 18.6, "wind_dir": 279, "temp": 31.4 },
+      { "time": "16:00", "date_str": "Aug 11", "us_aqi": 70.1, "pm2_5": 21.2, "pm10": 35.6, "nitrogen_dioxide": 14.2, "wind_speed": 22.1, "wind_dir": 293, "temp": 32.8 },
+      { "time": "20:00", "date_str": "Aug 11", "us_aqi": 87.6, "pm2_5": 28.6, "pm10": 43.9, "nitrogen_dioxide": 19.4, "wind_speed": 10.2, "wind_dir": 258, "temp": 26.8 }
+    ]
   },
   {
-    "offset": 3,
-    "label": "T+3",
-    "us_aqi": 83.52,
-    "pm2_5": 27.80,
-    "pm10": 42.10,
-    "nitrogen_dioxide": 18.90,
-    "temp_max": 33.10,
-    "temp_min": 17.80,
-    "wind_speed_max": 13.80,
-    "isObserved": false
+    "offset": 3, "label": "T+3", "date_str": "Aug 12",
+    "us_aqi": 83.52, "pm2_5": 27.80, "pm10": 42.10, "nitrogen_dioxide": 18.90,
+    "temp_max": 33.10, "temp_min": 17.80, "wind_speed_max": 13.80, "isObserved": false,
+    "sub_daily": [
+      { "time": "00:00", "date_str": "Aug 12", "us_aqi": 90.4, "pm2_5": 30.4, "pm10": 47.1, "nitrogen_dioxide": 21.8, "wind_speed": 5.1, "wind_dir": 220, "temp": 19.5 },
+      { "time": "04:00", "date_str": "Aug 12", "us_aqi": 94.7, "pm2_5": 32.6, "pm10": 49.8, "nitrogen_dioxide": 23.4, "wind_speed": 4.3, "wind_dir": 206, "temp": 18.6 },
+      { "time": "08:00", "date_str": "Aug 12", "us_aqi": 88.6, "pm2_5": 28.8, "pm10": 44.9, "nitrogen_dioxide": 26.1, "wind_speed": 7.8, "wind_dir": 244, "temp": 23.2 },
+      { "time": "12:00", "date_str": "Aug 12", "us_aqi": 72.1, "pm2_5": 21.8, "pm10": 36.8, "nitrogen_dioxide": 15.5, "wind_speed": 18.1, "wind_dir": 277, "temp": 31.8 },
+      { "time": "16:00", "date_str": "Aug 12", "us_aqi": 68.9, "pm2_5": 20.2, "pm10": 34.9, "nitrogen_dioxide": 13.8, "wind_speed": 21.6, "wind_dir": 291, "temp": 33.1 },
+      { "time": "20:00", "date_str": "Aug 12", "us_aqi": 86.4, "pm2_5": 28.1, "pm10": 43.2, "nitrogen_dioxide": 19.1, "wind_speed": 9.8, "wind_dir": 254, "temp": 27.1 }
+    ]
   }
 ]

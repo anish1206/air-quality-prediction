@@ -16,84 +16,102 @@ const PUNE_STATIONS = [
   { name: 'Aundh',        coords: [73.8070, 18.5590] as [number, number], weightMult: 0.88 },
 ];
 
-// ── Pollutant-specific colour palettes ────────────────────────────────────────
+// ── Pollutant colour palettes ─────────────────────────────────────────────────
 const POLLUTANT_PALETTES: Record<string, any> = {
   us_aqi: [
     'interpolate', ['linear'], ['heatmap-density'],
-    0,   'rgba(0,0,0,0)',
-    0.2, 'rgba(16, 185, 129, 0.45)',   // Green
-    0.4, 'rgba(245, 158,  11, 0.55)',  // Amber
-    0.7, 'rgba(249, 115,  22, 0.75)',  // Orange
-    1.0, 'rgba(225,  29,  72, 0.90)',  // Red
+    0, 'rgba(0,0,0,0)', 0.2, 'rgba(16,185,129,0.45)',
+    0.4, 'rgba(245,158,11,0.55)', 0.7, 'rgba(249,115,22,0.75)',
+    1.0, 'rgba(225,29,72,0.90)',
   ],
   pm2_5: [
     'interpolate', ['linear'], ['heatmap-density'],
-    0,   'rgba(0,0,0,0)',
-    0.2, 'rgba(6,  182, 212, 0.45)',   // Cyan
-    0.5, 'rgba(234, 179,   8, 0.65)',  // Gold
-    0.8, 'rgba(239,  68,  68, 0.85)',  // Bright Red
-    1.0, 'rgba(168,  85, 247, 0.95)',  // Magenta
+    0, 'rgba(0,0,0,0)', 0.2, 'rgba(6,182,212,0.45)',
+    0.5, 'rgba(234,179,8,0.65)', 0.8, 'rgba(239,68,68,0.85)',
+    1.0, 'rgba(168,85,247,0.95)',
   ],
   pm10: [
     'interpolate', ['linear'], ['heatmap-density'],
-    0,   'rgba(0,0,0,0)',
-    0.2, 'rgba(217, 119,   6, 0.45)',  // Ochre
-    0.6, 'rgba(180,  83,   9, 0.65)',  // Rust
-    1.0, 'rgba(120,  53,  15, 0.90)',  // Dark Earth
+    0, 'rgba(0,0,0,0)', 0.2, 'rgba(217,119,6,0.45)',
+    0.6, 'rgba(180,83,9,0.65)', 1.0, 'rgba(120,53,15,0.90)',
   ],
   nitrogen_dioxide: [
     'interpolate', ['linear'], ['heatmap-density'],
-    0,   'rgba(0,0,0,0)',
-    0.3, 'rgba(139,  92, 246, 0.50)',  // Violet
-    0.7, 'rgba(192,  38, 211, 0.75)',  // Neon Pink
-    1.0, 'rgba(244,  63,  94, 0.95)',  // Crimson
+    0, 'rgba(0,0,0,0)', 0.3, 'rgba(139,92,246,0.50)',
+    0.7, 'rgba(192,38,211,0.75)', 1.0, 'rgba(244,63,94,0.95)',
   ],
 };
 
-// ── Wind-vector plume generator ───────────────────────────────────────────────
-// For each station we emit PLUME_STEPS micro-particles stretched downwind,
-// decaying in intensity, which turns circular blobs into realistic asymmetric plumes.
+// ── Sub-daily wind data (mirrors pune_data.json, keyed by step) ──────────────
+// wind_speed in km/h, wind_dir in degrees
+// Rather than importing the JSON (circular dep), we inline the same values.
+const WIND_DATA: { speed: number; dir: number }[] = [
+  // T-3 (steps 0-5)
+  {speed:4.2,dir:220},{speed:3.8,dir:205},{speed:6.5,dir:245},{speed:18.2,dir:280},{speed:21.4,dir:295},{speed:9.1,dir:255},
+  // T-2 (steps 6-11)
+  {speed:5.1,dir:210},{speed:4.4,dir:198},{speed:7.8,dir:238},{speed:19.6,dir:272},{speed:22.8,dir:288},{speed:10.3,dir:248},
+  // T-1 (steps 12-17)
+  {speed:4.8,dir:230},{speed:4.1,dir:215},{speed:6.9,dir:250},{speed:17.4,dir:275},{speed:20.1,dir:290},{speed:8.6,dir:260},
+  // T   (steps 18-23)
+  {speed:4.6,dir:218},{speed:3.9,dir:202},{speed:7.2,dir:242},{speed:16.8,dir:278},{speed:20.4,dir:292},{speed:8.8,dir:252},
+  // T+1 (steps 24-29)
+  {speed:5.0,dir:222},{speed:4.2,dir:208},{speed:7.6,dir:246},{speed:17.9,dir:276},{speed:21.2,dir:290},{speed:9.4,dir:256},
+  // T+2 (steps 30-35)
+  {speed:5.3,dir:225},{speed:4.6,dir:211},{speed:8.1,dir:249},{speed:18.6,dir:279},{speed:22.1,dir:293},{speed:10.2,dir:258},
+  // T+3 (steps 36-41)
+  {speed:5.1,dir:220},{speed:4.3,dir:206},{speed:7.8,dir:244},{speed:18.1,dir:277},{speed:21.6,dir:291},{speed:9.8,dir:254},
+];
+
+// ── Pollutant base values per sub-step ───────────────────────────────────────
+const AQI_DATA   = [118.2,122.5,115.3,98.4,94.1,110.8,109.4,113.1,106.7,91.2,87.9,103.2,106.2,110.4,103.8,88.1,84.3,101.5,92.4,96.8,90.1,74.3,70.8,88.2,89.3,93.6,87.4,71.8,68.4,85.1,91.6,95.9,89.8,73.4,70.1,87.6,90.4,94.7,88.6,72.1,68.9,86.4];
+const PM25_DATA  = [42.1,44.8,39.6,31.2,28.9,38.4,49.2,51.6,47.3,38.4,36.1,44.8,39.8,42.1,38.2,29.6,27.1,35.8,31.2,33.4,29.8,22.1,20.4,28.9,29.8,32.1,28.2,21.4,19.8,27.4,31.0,33.2,29.4,22.8,21.2,28.6,30.4,32.6,28.8,21.8,20.2,28.1];
+const PM10_DATA  = [67.3,70.1,63.4,52.8,49.7,61.2,51.8,54.2,49.1,39.8,37.5,47.1,44.2,46.8,41.5,33.2,31.4,40.1,48.1,51.2,46.4,37.8,35.9,44.6,46.2,49.1,44.3,36.1,34.2,42.8,47.8,50.4,45.6,37.4,35.6,43.9,47.1,49.8,44.9,36.8,34.9,43.2];
+const NO2_DATA   = [11.2,12.1,13.8,7.9,6.4,10.1,12.3,13.1,14.6,8.2,6.9,9.8,12.8,13.6,15.2,8.6,7.1,9.9,23.4,25.1,28.6,16.2,14.1,19.8,21.1,22.8,25.4,15.2,13.4,18.2,22.2,23.9,26.8,15.8,14.2,19.4,21.8,23.4,26.1,15.5,13.8,19.1];
+
+const POLLUTANT_SERIES: Record<string, number[]> = {
+  us_aqi: AQI_DATA, pm2_5: PM25_DATA, pm10: PM10_DATA, nitrogen_dioxide: NO2_DATA,
+};
+
 const PLUME_STEPS = 6;
 
-const createPlumeGeoJSON = (timeOffset: number, pollutant: string) => {
-  // Pollutant-specific base values and sensitivity to time
-  const bases: Record<string, number> = {
-    us_aqi:           85 + timeOffset * 4.0 + Math.sin(timeOffset) * 6,
-    pm2_5:            38 + timeOffset * 1.8 + Math.cos(timeOffset) * 4,
-    pm10:             60 + timeOffset * 2.5 + Math.sin(timeOffset * 0.8) * 5,
-    nitrogen_dioxide: 28 + timeOffset * 1.2 + Math.cos(timeOffset * 1.2) * 3,
-  };
-  const baseVal = bases[pollutant] ?? bases.us_aqi;
+// Convert met wind direction + speed into lon/lat displacement components
+// Met convention: dir = direction FROM which wind blows (0=N, 90=E, 180=S, 270=W)
+// Positive U = eastward, positive V = northward
+const windToUV = (speedKmh: number, dirDeg: number) => {
+  const rad  = dirDeg * (Math.PI / 180);
+  const norm = speedKmh / 1000; // scale to degree-fraction per step
+  const U    = -norm * Math.sin(rad); // eastward component
+  const V    = -norm * Math.cos(rad); // northward component
+  return { U, V };
+};
 
-  // Wind vector: Pune predominantly experiences W→E and S→N flow.
-  // We modulate slightly by timeOffset to simulate diurnal variation.
-  const windU = 0.009 + Math.cos(timeOffset * 0.5) * 0.004; // eastward  (longitude shift per step)
-  const windV = 0.004 + Math.sin(timeOffset * 0.5) * 0.002; // northward (latitude  shift per step)
+const createPlumeGeoJSON = (subStep: number, pollutant: string) => {
+  const wind = WIND_DATA[subStep] ?? { speed: 8, dir: 270 };
+  const { U, V } = windToUV(wind.speed, wind.dir);
+  const series = POLLUTANT_SERIES[pollutant] ?? AQI_DATA;
+  const baseVal = series[subStep] ?? 80;
+
+  // Scale plume stretch: low wind → tight clustering, high wind → longer tail
+  const stretch = Math.min(wind.speed / 10, 2.5); // 0.4 – 2.5
 
   const features: any[] = [];
-
   PUNE_STATIONS.forEach((st) => {
     const stationVal = Math.max(5, baseVal * st.weightMult);
-
     for (let i = 0; i < PLUME_STEPS; i++) {
-      // Intensity decays exponentially downwind — gives a comet-tail shape
       const decay = Math.pow(0.72, i);
       features.push({
         type: 'Feature',
         geometry: {
           type: 'Point',
           coordinates: [
-            st.coords[0] + windU * i,
-            st.coords[1] + windV * i,
+            st.coords[0] + U * i * stretch,
+            st.coords[1] + V * i * stretch,
           ],
         },
-        properties: {
-          intensity: stationVal * decay,
-        },
+        properties: { intensity: stationVal * decay },
       });
     }
   });
-
   return { type: 'FeatureCollection', features };
 };
 
@@ -101,13 +119,11 @@ const createPlumeGeoJSON = (timeOffset: number, pollutant: string) => {
 export default function AirQualityMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map          = useRef<maplibregl.Map | null>(null);
-  const { selectedTimestamp, selectedPollutant } = useAppStore();
+  const { selectedSubStep, selectedPollutant } = useAppStore();
 
-  // Stable refs so the update effect always sees the latest values without
-  // needing to re-register the map load listener.
-  const tsRef        = useRef(selectedTimestamp);
-  const pollutantRef = useRef(selectedPollutant);
-  tsRef.current       = selectedTimestamp;
+  const subStepRef    = useRef(selectedSubStep);
+  const pollutantRef  = useRef(selectedPollutant);
+  subStepRef.current   = selectedSubStep;
   pollutantRef.current = selectedPollutant;
 
   // ── Init map once ──────────────────────────────────────────────────────────
@@ -116,83 +132,74 @@ export default function AirQualityMap() {
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style:  'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
       center: [73.8567, 18.5204],
-      zoom:   11,
-      pitch:  25,
+      zoom: 11,
+      pitch: 25,
     });
-
     map.current.addControl(new maplibregl.NavigationControl({}), 'bottom-right');
 
     map.current.on('load', () => {
       if (!map.current) return;
-
       map.current.addSource('plume-source', {
         type: 'geojson',
-        data: createPlumeGeoJSON(tsRef.current, pollutantRef.current),
+        data: createPlumeGeoJSON(subStepRef.current, pollutantRef.current) as any,
       });
 
+      // Dynamic radius: wider when wind is strong (afternoon dispersion)
+      const wind = WIND_DATA[subStepRef.current] ?? { speed: 8, dir: 270 };
+      const radiusBoost = 1 + Math.min(wind.speed / 25, 0.8);
+
       map.current.addLayer({
-        id:      'plume-layer',
-        type:    'heatmap',
-        source:  'plume-source',
+        id: 'plume-layer',
+        type: 'heatmap',
+        source: 'plume-source',
         maxzoom: 15,
         paint: {
-          // Weight proportional to intensity value
-          'heatmap-weight': [
-            'interpolate', ['linear'], ['get', 'intensity'],
-            0, 0, 200, 1,
-          ],
-          // Intensity ramps with zoom so plumes stay vivid when zoomed in
-          'heatmap-intensity': [
+          'heatmap-weight':     ['interpolate', ['linear'], ['get', 'intensity'], 0, 0, 200, 1],
+          'heatmap-intensity':  ['interpolate', ['linear'], ['zoom'], 9, 0.8, 12, 1.4, 15, 2.5],
+          'heatmap-color':       POLLUTANT_PALETTES[pollutantRef.current] ?? POLLUTANT_PALETTES.us_aqi,
+          'heatmap-radius':     [
             'interpolate', ['linear'], ['zoom'],
-            9, 0.8, 12, 1.4, 15, 2.5,
-          ],
-          // Colour set by active pollutant (updated dynamically)
-          'heatmap-color': POLLUTANT_PALETTES[pollutantRef.current] ?? POLLUTANT_PALETTES.us_aqi,
-          // Larger radius = softer, more atmospheric plume
-          'heatmap-radius': [
-            'interpolate', ['linear'], ['zoom'],
-            9, 55, 12, 115, 14, 185,
+            9, 55 * radiusBoost, 12, 115 * radiusBoost, 14, 185 * radiusBoost,
           ],
           'heatmap-opacity': 0.78,
         },
       });
     });
 
-    return () => {
-      map.current?.remove();
-      map.current = null;
-    };
+    return () => { map.current?.remove(); map.current = null; };
   }, []);
 
-  // ── Update plume data + palette when timestamp or pollutant changes ────────
+  // ── Update plume + palette when sub-step or pollutant changes ──────────────
   useEffect(() => {
     if (!map.current) return;
 
     const updateLayer = () => {
       if (!map.current) return;
 
-      // 1. Reshape plume geometry (wind vector changes with time)
       const src = map.current.getSource('plume-source') as maplibregl.GeoJSONSource | undefined;
       if (src) {
-        src.setData(createPlumeGeoJSON(selectedTimestamp, selectedPollutant));
+        src.setData(createPlumeGeoJSON(selectedSubStep, selectedPollutant) as any);
       }
 
-      // 2. Swap colour palette for the selected pollutant
       if (map.current.getLayer('plume-layer')) {
-        const palette = POLLUTANT_PALETTES[selectedPollutant] ?? POLLUTANT_PALETTES.us_aqi;
-        map.current.setPaintProperty('plume-layer', 'heatmap-color', palette);
+        map.current.setPaintProperty('plume-layer', 'heatmap-color',
+          POLLUTANT_PALETTES[selectedPollutant] ?? POLLUTANT_PALETTES.us_aqi);
+
+        // Adjust radius based on current wind speed
+        const wind = WIND_DATA[selectedSubStep] ?? { speed: 8, dir: 270 };
+        const rb = 1 + Math.min(wind.speed / 25, 0.8);
+        map.current.setPaintProperty('plume-layer', 'heatmap-radius', [
+          'interpolate', ['linear'], ['zoom'],
+          9, 55 * rb, 12, 115 * rb, 14, 185 * rb,
+        ]);
       }
     };
 
-    // If the map style hasn't fully loaded yet, wait for it
-    if (map.current.isStyleLoaded()) {
-      updateLayer();
-    } else {
-      map.current.once('load', updateLayer);
-    }
-  }, [selectedTimestamp, selectedPollutant]);
+    if (map.current.isStyleLoaded()) updateLayer();
+    else map.current.once('load', updateLayer);
+  }, [selectedSubStep, selectedPollutant]);
 
   return <div ref={mapContainer} className="w-full h-full" />;
 }
