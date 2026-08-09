@@ -47,7 +47,7 @@ export default function TimeController({ forecastOpen = false }: Props) {
       <div
         className="
           w-full
-          bg-[#0a0a0a]/60 backdrop-blur-xl border border-white/[0.06]
+          bg-[#000000]/60 backdrop-blur-xl border border-white/[0.06]
           rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.4)]
           px-4 py-3
           flex flex-col gap-3

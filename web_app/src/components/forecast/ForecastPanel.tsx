@@ -166,7 +166,7 @@ export default function ForecastPanel({ data, onClose }: Props) {
   const activeColIdx = selectedTimestamp + 3; // 0–6
   const highlightStyle: React.CSSProperties = {
     position: 'absolute',
-    top: 0,
+    top: 45,
     bottom: -300,
     // px-5 = 20px padding; then label col; then activeColIdx * (1/7) of the remaining
     left:  `calc(20px + ${LABEL_COL}px + ${activeColIdx} * (100% - 40px - ${LABEL_COL}px) / ${N_COLS})`,
@@ -197,7 +197,7 @@ export default function ForecastPanel({ data, onClose }: Props) {
         overflow-hidden
         rounded-[26px]
         border border-[#303030]
-        bg-[#090909]
+        bg-[#000000]
         shadow-[0_16px_60px_rgba(0,0,0,0.65)]
         text-white
         transition-[width] duration-300 ease-in-out
