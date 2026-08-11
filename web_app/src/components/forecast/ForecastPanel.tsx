@@ -210,8 +210,8 @@ export default function ForecastPanel({ data, onClose }: Props) {
   // ── Active column highlight (per-day, not per-slot) ───────────────────────
   const activeColIdx = dayOffset + 3;
   const highlightStyle: React.CSSProperties = {
-    position: 'absolute', top: 45, bottom: -330,
-    left:  `calc(20px + ${LABEL_COL}px + ${activeColIdx} * (100% - 40px - ${LABEL_COL}px) / ${N_COLS})`,
+    position: 'absolute', top: 20, bottom: 200,
+    left:  `calc(38px + ${LABEL_COL}px + ${activeColIdx} * (100% - 80px - ${LABEL_COL}px) / ${N_COLS})`,
     width: `calc((100% - 40px - ${LABEL_COL}px) / ${N_COLS})`,
     background: 'rgba(255,255,255,0.045)', pointerEvents: 'none', zIndex: 1,
   };
@@ -225,64 +225,73 @@ export default function ForecastPanel({ data, onClose }: Props) {
 
   return (
     <aside
-      style={{ width: isExpanded ? `${CONTENT_W}px` : `${COLLAPSED_W}px`, overflowX: isExpanded ? 'hidden' : 'auto' }}
+      style={{ width: isExpanded ? `${CONTENT_W}px` : `${COLLAPSED_W}px` }}
       className="
         absolute right-4 top-16 bottom-4 z-30 overflow-hidden
         rounded-[26px] border border-[#303030]
-        bg-[#000000] shadow-[0_16px_60px_rgba(0,0,0,0.65)]
+        bg-[#090909] shadow-[0_16px_60px_rgba(0,0,0,0.65)]
         text-white transition-[width] duration-300 ease-in-out
-        [scrollbar-width:thin] [scrollbar-color:#3a3a3a_transparent]
+        flex flex-col
       "
     >
-      <div style={{ width: `${CONTENT_W}px` }} className="h-full flex flex-col">
-
-        {/* ── HEADER ── */}
-        <div className="flex h-[70px] shrink-0 items-center justify-between border-b border-[#252525] px-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center text-[#4285f4]">
-              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
-                <circle cx="12" cy="10" r="2.5" />
-              </svg>
-            </div>
-            <div>
-              <div className="text-[16px] font-medium tracking-[-0.1px] text-white">
-                Pune, Maharashtra, India
-              </div>
-              <div className="mt-[2px] text-[11px] text-[#8a8a8a]">
-                {activeSlot?.date_str} · {activeSlot?.time} IST ·&nbsp;
-                <span style={{ color: isObserved ? '#79c7a2' : '#4285f4' }}>
-                  {isObserved ? 'Observed' : 'AI Forecast'} · {SLOT_LABELS[slotIdx]}
-                </span>
-              </div>
-            </div>
+      {/* ── HEADER — always as wide as the visible panel, buttons pinned right ── */}
+      <div className="flex h-[70px] shrink-0 items-center border-b border-[#252525] px-5">
+        {/* Left: location info — clipped naturally by panel width */}
+        <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center text-[#4285f4]">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
+              <circle cx="12" cy="10" r="2.5" />
+            </svg>
           </div>
-          <div className="flex items-center gap-4">
-            <button type="button" onClick={() => setIsExpanded((v) => !v)}
-              className="text-[#777] transition hover:text-white"
-              title={isExpanded ? 'Collapse' : 'Expand'}>
-              {isExpanded ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M8 3v5H3"/><path d="M16 21v-5h5"/><path d="M3 8l7 7"/><path d="M21 16l-7-7"/>
-                </svg>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>
-                </svg>
-              )}
-            </button>
-            <button type="button" onClick={onClose}
-              className="text-[#777] transition hover:text-white" title="Close">
-              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-              </svg>
-            </button>
+          <div className="min-w-0 overflow-hidden">
+            <div className="text-[16px] font-medium tracking-[-0.1px] text-white truncate">
+              Pune, Maharashtra, India
+            </div>
+            <div className="mt-[2px] text-[11px] text-[#8a8a8a] truncate">
+              {activeSlot?.date_str} · {activeSlot?.time} IST ·&nbsp;
+              <span style={{ color: isObserved ? '#79c7a2' : '#4285f4' }}>
+                {isObserved ? 'Observed' : 'AI Forecast'} · {SLOT_LABELS[slotIdx]}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* ── SCROLLABLE BODY ── */}
-        <div className="relative flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:thin] [scrollbar-color:#3a3a3a_transparent]">
+        {/* Right: expand + close — always visible, never scrolled away */}
+        <div className="flex shrink-0 items-center gap-4 pl-3">
+          <button type="button" onClick={() => setIsExpanded((v) => !v)}
+            className="text-[#777] transition hover:text-white"
+            title={isExpanded ? 'Collapse' : 'Expand'}>
+            {isExpanded ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M8 3v5H3"/><path d="M16 21v-5h5"/><path d="M3 8l7 7"/><path d="M21 16l-7-7"/>
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>
+              </svg>
+            )}
+          </button>
+          <button type="button" onClick={onClose}
+            className="text-[#777] transition hover:text-white" title="Close">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* ── BODY — fixed inner width, horizontal scroll only here ── */}
+      <div
+        className="relative flex-1 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:#3a3a3a_transparent]"
+        style={{ overflowX: isExpanded ? 'hidden' : 'auto' }}
+      >
+        {/* Inner content always at full CONTENT_W */}
+        <div style={{ width: `${CONTENT_W}px`, minHeight: '100%', position: 'relative' }}>
+          {/* Active column highlight — spans full scroll height */}
           <div style={highlightStyle} />
+
+          <div className="relative z-10 px-5 pb-8">
 
           <div className="relative z-10 px-5 pb-8">
 
@@ -459,6 +468,7 @@ export default function ForecastPanel({ data, onClose }: Props) {
           </div>
         </div>
       </div>
+    </div>
     </aside>
   );
 }

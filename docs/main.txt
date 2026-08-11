@@ -1,0 +1,7 @@
+model predicting wrong pm 2.5 (understand do we actually require to predict it)
+also do something about the clouds 
+
+currently trying to get the actual data (weather + pollution) to predict next 3 days aqi (recursively)
+after this becomess complete - can add a observability layer to see if any drift in the ml model (coz the next dat we will get the actuat data from the live pipeline so drift can be detected)
+
+after this version (pulling data, showing correct+meaning info clouds over map and all) then move towrds decising and implemeniting the actual usefull "product" of this project usefull in real life
