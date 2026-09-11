@@ -1,0 +1,22 @@
+[
+  { "id": "DEL", "name": "Delhi", "state": "Delhi NCT", "lat": 28.6139, "lon": 77.2090, "elevation": 216, "hypothesized_regime": "IGP_Northwest" },
+  { "id": "AGR", "name": "Agra", "state": "Uttar Pradesh", "lat": 27.1767, "lon": 78.0081, "elevation": 171, "hypothesized_regime": "IGP_Upper" },
+  { "id": "KNP", "name": "Kanpur", "state": "Uttar Pradesh", "lat": 26.4499, "lon": 80.3319, "elevation": 126, "hypothesized_regime": "IGP_Central" },
+  { "id": "LKO", "name": "Lucknow", "state": "Uttar Pradesh", "lat": 26.8467, "lon": 80.9462, "elevation": 123, "hypothesized_regime": "IGP_Central" },
+  { "id": "VAR", "name": "Varanasi", "state": "Uttar Pradesh", "lat": 25.3176, "lon": 82.9739, "elevation": 81, "hypothesized_regime": "IGP_Lower" },
+  { "id": "PAT", "name": "Patna", "state": "Bihar", "lat": 25.5941, "lon": 85.1376, "elevation": 53, "hypothesized_regime": "IGP_Eastern" },
+  { "id": "KOL", "name": "Kolkata", "state": "West Bengal", "lat": 22.5726, "lon": 88.3639, "elevation": 9, "hypothesized_regime": "Deltaic_Marine" },
+  { "id": "PUN", "name": "Pune", "state": "Maharashtra", "lat": 18.5204, "lon": 73.8567, "elevation": 560, "hypothesized_regime": "Deccan_Plateau" },
+  { "id": "NSK", "name": "Nashik", "state": "Maharashtra", "lat": 19.9975, "lon": 73.7898, "elevation": 600, "hypothesized_regime": "Deccan_Plateau" },
+  { "id": "CSN", "name": "Chh. Sambhajinagar", "state": "Maharashtra", "lat": 19.8762, "lon": 75.3433, "elevation": 568, "hypothesized_regime": "Deccan_Plateau" },
+  { "id": "NAG", "name": "Nagpur", "state": "Maharashtra", "lat": 21.1458, "lon": 79.0882, "elevation": 310, "hypothesized_regime": "Central_Inland" },
+  { "id": "BHO", "name": "Bhopal", "state": "Madhya Pradesh", "lat": 23.2599, "lon": 77.4126, "elevation": 527, "hypothesized_regime": "Central_Inland" },
+  { "id": "IND", "name": "Indore", "state": "Madhya Pradesh", "lat": 22.7196, "lon": 75.8577, "elevation": 553, "hypothesized_regime": "Central_Inland" },
+  { "id": "AHM", "name": "Ahmedabad", "state": "Gujarat", "lat": 23.0225, "lon": 72.5714, "elevation": 53, "hypothesized_regime": "Western_Arid" },
+  { "id": "BOM", "name": "Mumbai", "state": "Maharashtra", "lat": 19.0760, "lon": 72.8777, "elevation": 14, "hypothesized_regime": "Coastal_Marine" },
+  { "id": "SUR", "name": "Surat", "state": "Gujarat", "lat": 21.1702, "lon": 72.8311, "elevation": 13, "hypothesized_regime": "Coastal_Marine" },
+  { "id": "HYD", "name": "Hyderabad", "state": "Telangana", "lat": 17.3850, "lon": 78.4867, "elevation": 542, "hypothesized_regime": "Southern_Plateau" },
+  { "id": "BLR", "name": "Bengaluru", "state": "Karnataka", "lat": 12.9716, "lon": 77.5946, "elevation": 920, "hypothesized_regime": "Southern_Highland" },
+  { "id": "MAA", "name": "Chennai", "state": "Tamil Nadu", "lat": 13.0827, "lon": 80.2707, "elevation": 6, "hypothesized_regime": "Coromandel_Coast" },
+  { "id": "JAI", "name": "Jaipur", "state": "Rajasthan", "lat": 26.9124, "lon": 75.7873, "elevation": 431, "hypothesized_regime": "Arid_Margin" }
+]

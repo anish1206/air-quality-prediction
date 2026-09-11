@@ -17,7 +17,17 @@ interface Props {
 const DAY_TICKS = ['T−3', 'T−2', 'T−1', 'Today', 'T+1', 'T+2', 'T+3'];
 
 // Date strings matching pune_data.json
-const DAY_DATES = ['Aug 6', 'Aug 7', 'Aug 8', 'Aug 9', 'Aug 10', 'Aug 11', 'Aug 12'];
+const DAY_DATES = ['Aug 11', 'Aug 12', 'Aug 13', 'Aug 14', 'Aug 15', 'Aug 16', 'Aug 17'];
+
+// Inlined CHHI scores from pune_data.json for 42 sub-daily steps
+const CHHI_DATA = [31.8, 31.3, 38.0, 43.4, 35.4, 31.1, 27.7, 26.5, 31.1, 34.6, 35.5, 29.8, 30.9, 30.1, 33.7, 40.5, 39.0, 32.4, 29.7, 29.4, 33.6, 40.0, 36.2, 31.1, 34.6, 41.8, 39.7, 33.3, 30.8, 29.9, 34.3, 42.2, 40.0, 33.6, 31.0, 30.2, 34.9, 42.9, 41.2, 34.9, 32.3, 31.3];
+
+const getHazardInfo = (score: number) => {
+  if (score <= 25) return { label: 'Low Risk',        color: '#10b981' };
+  if (score <= 50) return { label: 'Moderate',        color: '#f59e0b' };
+  if (score <= 75) return { label: 'High Hazard',     color: '#f97316' };
+  return                 { label: 'Critical',         color: '#e11d48' };
+};
 
 export default function TimeController({ forecastOpen = false }: Props) {
   const { selectedSubStep, setSubStep } = useAppStore();
@@ -39,11 +49,13 @@ export default function TimeController({ forecastOpen = false }: Props) {
   }, [isPlaying, selectedSubStep, setSubStep]);
 
   const fillPct = (selectedSubStep / (TOTAL_STEPS - 1)) * 100;
+  const chhi    = CHHI_DATA[selectedSubStep] ?? 35;
+  const hazard  = getHazardInfo(chhi);
 
   return (
     <div
       className={`
-        absolute bottom-5 z-10 w-[560px]
+        absolute bottom-5 z-10 w-[600px]
         transition-all duration-300 ease-in-out
         ${forecastOpen ? 'left-4' : 'left-1/2 -translate-x-1/2'}
       `}
@@ -87,10 +99,23 @@ export default function TimeController({ forecastOpen = false }: Props) {
             </span>
           </div>
 
-          {/* Horizon badge */}
-          <span className="text-[10px] text-[#6f6f6f] px-2 py-0.5 rounded-full border border-[#2a2a2a] bg-[#161616] whitespace-nowrap">
-            {dayOffset === 0 ? 'T' : dayOffset > 0 ? `T+${dayOffset}d` : `T${dayOffset}d`} / {SLOT_TIMES[slot]}
-          </span>
+          {/* CHHI Risk Badge */}
+          <div className="flex items-center gap-2">
+            <span
+              className="text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap"
+              style={{
+                color: hazard.color,
+                background: `${hazard.color}18`,
+                border: `1px solid ${hazard.color}44`,
+              }}
+            >
+              CHHI&nbsp;{chhi.toFixed(0)}&nbsp;·&nbsp;{hazard.label}
+            </span>
+            {/* Horizon badge */}
+            <span className="text-[10px] text-[#6f6f6f] px-2 py-0.5 rounded-full border border-[#2a2a2a] bg-[#161616] whitespace-nowrap">
+              {dayOffset === 0 ? 'T' : dayOffset > 0 ? `T+${dayOffset}d` : `T${dayOffset}d`} / {SLOT_TIMES[slot]}
+            </span>
+          </div>
         </div>
 
         {/* ── Slider ── */}

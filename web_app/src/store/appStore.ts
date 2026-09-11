@@ -17,7 +17,7 @@ export const toSubStep = (dayOffset: number, slot: number) =>
   (dayOffset + 3) * SLOTS_PER_DAY + slot;
 
 interface AppState {
-  selectedPollutant: 'us_aqi' | 'pm2_5' | 'pm10' | 'nitrogen_dioxide';
+  selectedPollutant: 'us_aqi' | 'pm2_5' | 'pm10' | 'nitrogen_dioxide' | 'chhi_score' | 'temp';
   // Legacy per-day cursor (kept for ForecastPanel column highlighting)
   selectedTimestamp: number; // -3 … +3
   // New sub-daily cursor
@@ -26,7 +26,7 @@ interface AppState {
   isForecastPanelOpen: boolean;
   isLayerPanelOpen: boolean;
 
-  setPollutant:  (p: 'us_aqi' | 'pm2_5' | 'pm10' | 'nitrogen_dioxide') => void;
+  setPollutant:  (p: 'us_aqi' | 'pm2_5' | 'pm10' | 'nitrogen_dioxide' | 'chhi_score' | 'temp') => void;
   setTimestamp:  (t: number | ((prev: number) => number)) => void;
   setSubStep:    (s: number) => void;
   nextSubStep:   () => void;
@@ -36,7 +36,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  selectedPollutant:   'us_aqi',
+  selectedPollutant:   'chhi_score',
   selectedTimestamp:   0,
   selectedSubStep:     18, // default = day T (offset 0), slot 0 → step 18
 

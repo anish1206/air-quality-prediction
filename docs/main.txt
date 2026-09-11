@@ -5,3 +5,9 @@ currently trying to get the actual data (weather + pollution) to predict next 3 
 after this becomess complete - can add a observability layer to see if any drift in the ml model (coz the next dat we will get the actuat data from the live pipeline so drift can be detected)
 
 after this version (pulling data, showing correct+meaning info clouds over map and all) then move towrds decising and implemeniting the actual usefull "product" of this project usefull in real life
+
+
+
+multiple city data collection, analyze pollution pattern in them, 
+group cities based on similar pattern
+if hazzard spike occure in 1 city , can allert other cities who followed same pattern

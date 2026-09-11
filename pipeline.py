@@ -22,9 +22,9 @@ def fetch_weather_data():
         "forecast_days": 4,
         "timezone": "Asia/Kolkata"
     }
-    response = requests.get(url, params=params, timeout=10)
-    response.raise_for_status()
-    return response.json()["hourly"]
+    resp = requests.get(url, params=params, timeout=10)
+    resp.raise_for_status()
+    return resp.json()["hourly"]
 
 def fetch_air_quality_data():
     url = "https://air-quality-api.open-meteo.com/v1/air-quality"
@@ -36,25 +36,30 @@ def fetch_air_quality_data():
         "forecast_days": 4,
         "timezone": "Asia/Kolkata"
     }
-    response = requests.get(url, params=params, timeout=10)
-    response.raise_for_status()
-    return response.json()["hourly"]
+    resp = requests.get(url, params=params, timeout=10)
+    resp.raise_for_status()
+    return resp.json()["hourly"]
+
+def compute_chhi(temp, humidity, aqi):
+    # Heat Index Approximation
+    hi = temp + 0.5555 * (6.11 * np.exp(5417.7530 * (1/273.16 - 1/(273.15 + temp))) - 10) * (humidity/100)
+    h_stress = np.clip((hi - 20) / (42 - 20) * 100, 0, 100)
+    p_stress = np.clip((aqi / 200.0) * 100, 0, 100)
+    
+    chhi = 0.40 * h_stress + 0.40 * p_stress + 0.20 * (h_stress * p_stress / 100.0)
+    return float(np.clip(chhi, 0, 100))
 
 def run_pipeline():
-    print("🚀 Running Direct Multi-Output ML Forecast Pipeline...")
+    print("🚀 Running Compound Health Hazard Index (CHHI) Pipeline...")
     
-    # 1. Load Multi-Output ML Pipeline
     model_pipeline = None
     if os.path.exists(MODEL_PATH):
         try:
             model_pipeline = joblib.load(MODEL_PATH)
-            print(f"✅ Successfully loaded Direct Multi-Output ML model from '{MODEL_PATH}'")
+            print(f"✅ Loaded CHHI ML model from '{MODEL_PATH}'")
         except Exception as e:
-            print(f"⚠️ Warning loading model: {e}")
-    else:
-        print("⚠️ Model pkl file not found in data/. Running with direct API observations.")
+            print(f"⚠️ Model load note: {e}")
 
-    # 2. Fetch Live Weather and Air Quality APIs
     weather = fetch_weather_data()
     air = fetch_air_quality_data()
 
@@ -66,68 +71,69 @@ def run_pipeline():
 
     df = pd.merge(df_w, df_a, on='time', how='inner').sort_values('time').reset_index(drop=True)
 
-    # Convert Wind Direction to Vectors (U, V)
     rad = np.deg2rad(df['wind_direction_10m'])
     df['wind_u'] = -df['wind_speed_10m'] * np.sin(rad)
     df['wind_v'] = -df['wind_speed_10m'] * np.cos(rad)
 
     now = datetime.now()
     today_start = pd.Timestamp(now.year, now.month, now.day)
-    SUB_SLOTS = [0, 4, 8, 12, 16, 20] # 6 slots per day
+    SUB_SLOTS = [0, 4, 8, 12, 16, 20]
 
-    # Find the current/last observed slot T (Today at hour 20:00 or current hour slot)
     last_obs_time = today_start + timedelta(hours=20)
     obs_df = df[df['time'] <= last_obs_time].sort_values('time')
 
     if not obs_df.empty:
-        curr_row = obs_df.iloc[-1]
-        prev_1step_time = curr_row['time'] - timedelta(hours=4)
-        prev_6step_time = curr_row['time'] - timedelta(hours=24)
+        curr = obs_df.iloc[-1]
+        prev_1step_time = curr['time'] - timedelta(hours=4)
+        prev_6step_time = curr['time'] - timedelta(hours=24)
 
         row_1step = df[df['time'] == prev_1step_time]
         row_6step = df[df['time'] == prev_6step_time]
 
-        lag_1step_aqi = float(row_1step['us_aqi'].iloc[0]) if not row_1step.empty else float(curr_row['us_aqi'])
-        lag_6step_aqi = float(row_6step['us_aqi'].iloc[0]) if not row_6step.empty else float(curr_row['us_aqi'])
-        lag_1step_pm25 = float(row_1step['pm2_5'].iloc[0]) if not row_1step.empty else float(curr_row['pm2_5'])
-        lag_6step_pm25 = float(row_6step['pm2_5'].iloc[0]) if not row_6step.empty else float(curr_row['pm2_5'])
-    else:
-        curr_row = df.iloc[0]
-        lag_1step_aqi, lag_6step_aqi = float(curr_row['us_aqi']), float(curr_row['us_aqi'])
-        lag_1step_pm25, lag_6step_pm25 = float(curr_row['pm2_5']), float(curr_row['pm2_5'])
+        curr_chhi = compute_chhi(float(curr['temperature_2m']), float(curr['relative_humidity_2m']), float(curr['us_aqi']))
+        
+        lag_1_chhi = compute_chhi(float(row_1step['temperature_2m'].iloc[0]), float(row_1step['relative_humidity_2m'].iloc[0]), float(row_1step['us_aqi'].iloc[0])) if not row_1step.empty else curr_chhi
+        lag_6_chhi = compute_chhi(float(row_6step['temperature_2m'].iloc[0]), float(row_6step['relative_humidity_2m'].iloc[0]), float(row_6step['us_aqi'].iloc[0])) if not row_6step.empty else curr_chhi
 
-    # Prepare feature input row X for direct multi-output prediction
-    temp_val = float(curr_row['temperature_2m'])
-    rain_val = float(curr_row['rain'])
-    hour_val = int(curr_row['time'].hour)
-    month_val = int(curr_row['time'].month)
+        lag_1_aqi = float(row_1step['us_aqi'].iloc[0]) if not row_1step.empty else float(curr['us_aqi'])
+        lag_6_aqi = float(row_6step['us_aqi'].iloc[0]) if not row_6step.empty else float(curr['us_aqi'])
+        lag_1_pm25 = float(row_1step['pm2_5'].iloc[0]) if not row_1step.empty else float(curr['pm2_5'])
+        lag_6_pm25 = float(row_6step['pm2_5'].iloc[0]) if not row_6step.empty else float(curr['pm2_5'])
+    else:
+        curr = df.iloc[0]
+        curr_chhi = 35.0
+        lag_1_chhi, lag_6_chhi = 35.0, 35.0
+        lag_1_aqi, lag_6_aqi = float(curr['us_aqi']), float(curr['us_aqi'])
+        lag_1_pm25, lag_6_pm25 = float(curr['pm2_5']), float(curr['pm2_5'])
 
     feature_row = pd.DataFrame([{
-        'temp': temp_val,
-        'humidity': float(curr_row['relative_humidity_2m']),
-        'rain': rain_val,
-        'wind_u': float(curr_row['wind_u']),
-        'wind_v': float(curr_row['wind_v']),
-        'wind_speed': float(curr_row['wind_speed_10m']),
-        'is_raining': 1 if rain_val > 0 else 0,
-        'month_sin': np.sin(2 * np.pi * month_val / 12),
-        'month_cos': np.cos(2 * np.pi * month_val / 12),
-        'hour_sin': np.sin(2 * np.pi * hour_val / 24),
-        'hour_cos': np.cos(2 * np.pi * hour_val / 24),
-        'us_aqi_lag_1step': lag_1step_aqi,
-        'us_aqi_lag_6step': lag_6step_aqi,
-        'pm2_5_lag_1step': lag_1step_pm25,
-        'pm2_5_lag_6step': lag_6step_pm25
+        'temp': float(curr['temperature_2m']),
+        'humidity': float(curr['relative_humidity_2m']),
+        'rain': float(curr['rain']),
+        'wind_u': float(curr['wind_u']),
+        'wind_v': float(curr['wind_v']),
+        'wind_speed': float(curr['wind_speed_10m']),
+        'is_raining': 1 if float(curr['rain']) > 0 else 0,
+        'month_sin': np.sin(2 * np.pi * curr['time'].month / 12),
+        'month_cos': np.cos(2 * np.pi * curr['time'].month / 12),
+        'hour_sin': np.sin(2 * np.pi * curr['time'].hour / 24),
+        'hour_cos': np.cos(2 * np.pi * curr['time'].hour / 24),
+        'chhi_score_lag_1step': lag_1_chhi,
+        'chhi_score_lag_6step': lag_6_chhi,
+        'us_aqi_lag_1step': lag_1_aqi,
+        'us_aqi_lag_6step': lag_6_aqi,
+        'pm2_5_lag_1step': lag_1_pm25,
+        'pm2_5_lag_6step': lag_6_pm25
     }])
 
-    # 3. DIRECT MULTI-OUTPUT INFERENCE (One single call predicts all 18 future steps!)
-    predictions_18 = None
+    # 3. DIRECT MULTI-OUTPUT INFERENCE FOR CHHI SCORE (0-100)
+    chhi_predictions_18 = None
     if model_pipeline is not None:
         try:
-            predictions_18 = model_pipeline.predict(feature_row)[0]
-            print(f"🎯 Direct ML Prediction generated {len(predictions_18)} sub-daily slot values!")
+            chhi_predictions_18 = model_pipeline.predict(feature_row)[0]
+            print(f"🎯 Predicted 18 steps of Compound Health Hazard Index!")
         except Exception as err:
-            print(f"⚠️ Direct inference note: {err}")
+            print(f"⚠️ Inference note: {err}")
 
     # 4. Construct Output Dataset
     output_days = []
@@ -153,7 +159,7 @@ def run_pipeline():
         wind_max = float(day_df['wind_speed_10m'].max())
 
         sub_daily_slots = []
-        day_aqi_list, day_pm25_list, day_pm10_list, day_no2_list = [], [], [], []
+        day_chhi_list, day_aqi_list, day_pm25_list = [], [], []
 
         for hour in SUB_SLOTS:
             slot_time = target_date + timedelta(hours=hour)
@@ -161,37 +167,42 @@ def run_pipeline():
 
             if not slot_row.empty:
                 r = slot_row.iloc[0]
-                t_val, w_speed, w_dir = float(r['temperature_2m']), float(r['wind_speed_10m']), float(r['wind_direction_10m'])
+                t_val, h_val, w_speed, w_dir = float(r['temperature_2m']), float(r['relative_humidity_2m']), float(r['wind_speed_10m']), float(r['wind_direction_10m'])
                 obs_aqi, obs_pm25, obs_pm10, obs_no2 = float(r['us_aqi']), float(r['pm2_5']), float(r['pm10']), float(r['nitrogen_dioxide'])
             else:
-                t_val, w_speed, w_dir = temp_max, wind_max, 270.0
+                t_val, h_val, w_speed, w_dir = temp_max, 65.0, wind_max, 270.0
                 obs_aqi, obs_pm25, obs_pm10, obs_no2 = 80.0, 25.0, 40.0, 15.0
 
+            slot_chhi_obs = compute_chhi(t_val, h_val, obs_aqi)
+
             if is_observed:
-                slot_aqi, slot_pm25, slot_pm10, slot_no2 = obs_aqi, obs_pm25, obs_pm10, obs_no2
+                slot_chhi = slot_chhi_obs
             else:
-                # Use DIRECT Multi-Output Prediction if available
-                if predictions_18 is not None and pred_idx < len(predictions_18):
-                    slot_aqi = max(0.0, float(predictions_18[pred_idx]))
-                    slot_pm25 = max(0.0, slot_aqi * 0.33)
-                    slot_pm10 = max(0.0, slot_aqi * 0.52)
-                    slot_no2 = max(0.0, slot_aqi * 0.22)
+                if chhi_predictions_18 is not None and pred_idx < len(chhi_predictions_18):
+                    slot_chhi = float(np.clip(chhi_predictions_18[pred_idx], 0, 100))
                     pred_idx += 1
                 else:
-                    slot_aqi, slot_pm25, slot_pm10, slot_no2 = obs_aqi, obs_pm25, obs_pm10, obs_no2
+                    slot_chhi = slot_chhi_obs
 
-            day_aqi_list.append(slot_aqi)
-            day_pm25_list.append(slot_pm25)
-            day_pm10_list.append(slot_pm10)
-            day_no2_list.append(slot_no2)
+            # Hazard Category Label
+            if slot_chhi <= 25: hazard_cat = "Low Risk"
+            elif slot_chhi <= 50: hazard_cat = "Moderate Risk"
+            elif slot_chhi <= 75: hazard_cat = "High Hazard"
+            else: hazard_cat = "Critical Hazard"
+
+            day_chhi_list.append(slot_chhi)
+            day_aqi_list.append(obs_aqi)
+            day_pm25_list.append(obs_pm25)
 
             sub_daily_slots.append({
                 "time": f"{hour:02d}:00",
                 "date_str": date_str,
-                "us_aqi": round(slot_aqi, 1),
-                "pm2_5": round(slot_pm25, 1),
-                "pm10": round(slot_pm10, 1),
-                "nitrogen_dioxide": round(slot_no2, 1),
+                "chhi_score": round(slot_chhi, 1),
+                "hazard_category": hazard_cat,
+                "us_aqi": round(obs_aqi, 1),
+                "pm2_5": round(obs_pm25, 1),
+                "pm10": round(obs_pm10, 1),
+                "nitrogen_dioxide": round(obs_no2, 1),
                 "wind_speed": round(w_speed, 1),
                 "wind_dir": round(w_dir, 1),
                 "temp": round(t_val, 1)
@@ -201,10 +212,9 @@ def run_pipeline():
             "offset": day_offset,
             "label": label,
             "date_str": date_str,
+            "chhi_score": round(float(np.mean(day_chhi_list)), 1),
             "us_aqi": round(float(np.mean(day_aqi_list)), 1),
             "pm2_5": round(float(np.mean(day_pm25_list)), 1),
-            "pm10": round(float(np.mean(day_pm10_list)), 1),
-            "nitrogen_dioxide": round(float(np.mean(day_no2_list)), 1),
             "temp_max": round(temp_max, 1),
             "temp_min": round(temp_min, 1),
             "wind_speed_max": round(wind_max, 1),
@@ -216,7 +226,7 @@ def run_pipeline():
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(output_days, f, indent=2)
 
-    print(f"🎉 Success! Direct Multi-Output predictions exported to '{OUTPUT_PATH}'.")
+    print(f"🎉 Success! Exported Compound Health Hazard Index data to '{OUTPUT_PATH}'.")
 
 if __name__ == "__main__":
     run_pipeline()

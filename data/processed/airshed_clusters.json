@@ -1,0 +1,70 @@
+[
+  {
+    "cluster_id": 0,
+    "cluster_name": "Indo-Gangetic Advective Corridor",
+    "color_hex": "#f43f5e",
+    "dominant_mechanism": "Northwest-to-Southeast valley channeling and winter boundary layer compression",
+    "member_cities": [
+      "AGR",
+      "DEL",
+      "JAI"
+    ],
+    "dominant_wind_speed": 1.72,
+    "dominant_wind_direction": 327.6,
+    "mean_pm25_zscore": 0.22,
+    "mean_humidity": 70.7
+  },
+  {
+    "cluster_id": 1,
+    "cluster_name": "Western Deccan Thermal Stagnation",
+    "color_hex": "#f59e0b",
+    "dominant_mechanism": "High-altitude continental dry inversion and nocturnal valley trapping",
+    "member_cities": [
+      "AHM",
+      "BHO",
+      "BOM",
+      "CSN",
+      "IND",
+      "NAG",
+      "NSK",
+      "PUN",
+      "SUR"
+    ],
+    "dominant_wind_speed": 3.06,
+    "dominant_wind_direction": 284.1,
+    "mean_pm25_zscore": 0.05,
+    "mean_humidity": 71.3
+  },
+  {
+    "cluster_id": 2,
+    "cluster_name": "Indo-Gangetic Advective Corridor",
+    "color_hex": "#f43f5e",
+    "dominant_mechanism": "Northwest-to-Southeast valley channeling and winter boundary layer compression",
+    "member_cities": [
+      "KNP",
+      "LKO",
+      "PAT",
+      "VAR"
+    ],
+    "dominant_wind_speed": 0.65,
+    "dominant_wind_direction": 312.3,
+    "mean_pm25_zscore": 0.19,
+    "mean_humidity": 76.7
+  },
+  {
+    "cluster_id": 3,
+    "cluster_name": "Western Deccan Thermal Stagnation",
+    "color_hex": "#f59e0b",
+    "dominant_mechanism": "High-altitude continental dry inversion and nocturnal valley trapping",
+    "member_cities": [
+      "BLR",
+      "HYD",
+      "KOL",
+      "MAA"
+    ],
+    "dominant_wind_speed": 2.31,
+    "dominant_wind_direction": 211.1,
+    "mean_pm25_zscore": 0.06,
+    "mean_humidity": 83.1
+  }
+]
