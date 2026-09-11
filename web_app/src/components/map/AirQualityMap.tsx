@@ -197,7 +197,7 @@ const createPlumeGeoJSON = (subStep: number, pollutant: string) => {
 export default function AirQualityMap() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map          = useRef<maplibregl.Map | null>(null);
-  const { selectedSubStep, selectedPollutant } = useAppStore();
+  const { selectedSubStep, selectedMetric: selectedPollutant } = useAppStore();
 
   const subStepRef    = useRef(selectedSubStep);
   const pollutantRef  = useRef(selectedPollutant);

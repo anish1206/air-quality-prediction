@@ -1,44 +1,36 @@
 import { useState, useEffect } from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 import {
-  useAppStore,
+  useAirshedStore,
   SLOT_TIMES,
   SLOT_LABELS,
   TOTAL_STEPS,
   stepToDayOffset,
   stepToSlot,
-} from '../../store/appStore';
+} from '../../store/airshedStore';
+import { getHazardStyle } from '../../lib/airshedSelectors';
 
 interface Props {
   forecastOpen?: boolean;
+  layerOpen?: boolean;
 }
 
-// Day labels for the 7 tick marks
 const DAY_TICKS = ['T−3', 'T−2', 'T−1', 'Today', 'T+1', 'T+2', 'T+3'];
 
-// Date strings matching pune_data.json
-const DAY_DATES = ['Aug 11', 'Aug 12', 'Aug 13', 'Aug 14', 'Aug 15', 'Aug 16', 'Aug 17'];
-
-// Inlined CHHI scores from pune_data.json for 42 sub-daily steps
-const CHHI_DATA = [31.8, 31.3, 38.0, 43.4, 35.4, 31.1, 27.7, 26.5, 31.1, 34.6, 35.5, 29.8, 30.9, 30.1, 33.7, 40.5, 39.0, 32.4, 29.7, 29.4, 33.6, 40.0, 36.2, 31.1, 34.6, 41.8, 39.7, 33.3, 30.8, 29.9, 34.3, 42.2, 40.0, 33.6, 31.0, 30.2, 34.9, 42.9, 41.2, 34.9, 32.3, 31.3];
-
-const getHazardInfo = (score: number) => {
-  if (score <= 25) return { label: 'Low Risk',        color: '#10b981' };
-  if (score <= 50) return { label: 'Moderate',        color: '#f59e0b' };
-  if (score <= 75) return { label: 'High Hazard',     color: '#f97316' };
-  return                 { label: 'Critical',         color: '#e11d48' };
-};
-
-export default function TimeController({ forecastOpen = false }: Props) {
-  const { selectedSubStep, setSubStep } = useAppStore();
+export default function TimeController({ forecastOpen = false, layerOpen = false }: Props) {
+  const { selectedSubStep, setSubStep, selectedCityId, payload } = useAirshedStore();
   const [isPlaying, setIsPlaying] = useState(false);
 
-  const dayOffset = stepToDayOffset(selectedSubStep); // -3 … +3
-  const slot      = stepToSlot(selectedSubStep);       // 0 … 5
-  const dayIdx    = dayOffset + 3;                     // 0 … 6
-  const isObserved = selectedSubStep < 24;             // steps 0–23 = T-3..T (4 days × 6)
+  const dayOffset = stepToDayOffset(selectedSubStep);
+  const slot = stepToSlot(selectedSubStep);
+  const dayIdx = dayOffset + 3;
+  const step = payload?.time_steps[selectedSubStep];
+  const isObserved = step?.is_observed ?? selectedSubStep < 24;
+  const node = step?.nodes[selectedCityId];
+  const cascadeCount = step?.active_cascade_pulses.length ?? 0;
+  const chhi = node?.chhi_score ?? 35;
+  const hazard = getHazardStyle(chhi);
 
-  // Auto-play: advance every 600 ms
   useEffect(() => {
     if (!isPlaying) return;
     const id = setInterval(() => {
@@ -49,15 +41,18 @@ export default function TimeController({ forecastOpen = false }: Props) {
   }, [isPlaying, selectedSubStep, setSubStep]);
 
   const fillPct = (selectedSubStep / (TOTAL_STEPS - 1)) * 100;
-  const chhi    = CHHI_DATA[selectedSubStep] ?? 35;
-  const hazard  = getHazardInfo(chhi);
+  const stamp = step ? `${step.date_formatted} • ${step.hour_ist} IST` : `${SLOT_TIMES[slot]} IST`;
 
   return (
     <div
       className={`
-        absolute bottom-5 z-10 w-[600px]
+        absolute bottom-5 z-10
         transition-all duration-300 ease-in-out
-        ${forecastOpen ? 'left-4' : 'left-1/2 -translate-x-1/2'}
+        ${forecastOpen
+          ? layerOpen
+            ? 'left-[238px] right-[508px] w-auto min-w-[420px]'
+            : 'left-4 right-[508px] w-auto min-w-[420px]'
+          : 'left-1/2 -translate-x-1/2 w-[620px]'}
       `}
     >
       <div className="
@@ -66,11 +61,8 @@ export default function TimeController({ forecastOpen = false }: Props) {
         rounded-[20px] shadow-[0_8px_32px_rgba(0,0,0,0.4)]
         px-4 py-3 flex flex-col gap-2
       ">
-
-        {/* ── Top row: controls + active timestamp ── */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            {/* Play / Pause */}
             <button
               type="button"
               onClick={() => setIsPlaying((p) => !p)}
@@ -78,7 +70,6 @@ export default function TimeController({ forecastOpen = false }: Props) {
             >
               {isPlaying ? <Pause size={13} /> : <Play size={13} />}
             </button>
-            {/* Reset */}
             <button
               type="button"
               onClick={() => { setIsPlaying(false); setSubStep(18); }}
@@ -88,10 +79,9 @@ export default function TimeController({ forecastOpen = false }: Props) {
             </button>
           </div>
 
-          {/* Active timestamp */}
           <div className="flex flex-col items-center">
-            <span className="text-[13px] font-medium text-white leading-none">
-              {DAY_DATES[dayIdx]}, 2026 &nbsp;·&nbsp; {SLOT_TIMES[slot]} IST
+            <span className="text-[13px] font-medium text-white leading-none font-mono">
+              {stamp}
             </span>
             <span className="text-[10px] mt-0.5 leading-none" style={{ color: isObserved ? '#79c7a2' : '#4285f4' }}>
               {isObserved ? 'OBSERVED HISTORICAL' : 'AI PREDICTED FORECAST'}
@@ -99,8 +89,12 @@ export default function TimeController({ forecastOpen = false }: Props) {
             </span>
           </div>
 
-          {/* CHHI Risk Badge */}
           <div className="flex items-center gap-2">
+            {cascadeCount > 0 && (
+              <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap text-[#f97316] bg-[#f97316]/15 border border-[#f97316]/40">
+                {cascadeCount} cascade{cascadeCount === 1 ? '' : 's'}
+              </span>
+            )}
             <span
               className="text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap"
               style={{
@@ -111,14 +105,12 @@ export default function TimeController({ forecastOpen = false }: Props) {
             >
               CHHI&nbsp;{chhi.toFixed(0)}&nbsp;·&nbsp;{hazard.label}
             </span>
-            {/* Horizon badge */}
-            <span className="text-[10px] text-[#6f6f6f] px-2 py-0.5 rounded-full border border-[#2a2a2a] bg-[#161616] whitespace-nowrap">
+            <span className="text-[10px] text-[#6f6f6f] px-2 py-0.5 rounded-full border border-[#2a2a2a] bg-[#161616] whitespace-nowrap font-mono">
               {dayOffset === 0 ? 'T' : dayOffset > 0 ? `T+${dayOffset}d` : `T${dayOffset}d`} / {SLOT_TIMES[slot]}
             </span>
           </div>
         </div>
 
-        {/* ── Slider ── */}
         <input
           type="range"
           min={0}
@@ -132,26 +124,24 @@ export default function TimeController({ forecastOpen = false }: Props) {
           }}
         />
 
-        {/* ── Day tick marks with sub-tick dots ── */}
         <div className="flex justify-between px-0 text-[9px]">
           {DAY_TICKS.map((label, i) => {
-            const dayStep = i * 6; // first slot of this day
+            const dayStep = i * 6;
             const isActiveDay = dayIdx === i;
             return (
               <div key={label} className="flex flex-col items-center gap-0.5" style={{ width: `${100 / 7}%` }}>
-                {/* 6 sub-tick dots */}
                 <div className="flex gap-[2px]">
                   {[0, 1, 2, 3, 4, 5].map((s) => {
-                    const step = dayStep + s;
-                    const isActive = step === selectedSubStep;
+                    const stepIdx = dayStep + s;
+                    const isActive = stepIdx === selectedSubStep;
                     return (
                       <button
                         key={s}
                         type="button"
-                        onClick={() => setSubStep(step)}
+                        onClick={() => setSubStep(stepIdx)}
                         className="rounded-full transition-all"
                         style={{
-                          width:  isActive ? 6 : 4,
+                          width: isActive ? 6 : 4,
                           height: isActive ? 6 : 4,
                           background: isActive ? '#4285f4' : isActiveDay ? '#555' : '#333',
                           marginTop: isActive ? 0 : 1,
@@ -160,7 +150,6 @@ export default function TimeController({ forecastOpen = false }: Props) {
                     );
                   })}
                 </div>
-                {/* Day label */}
                 <span className={`transition-colors ${isActiveDay ? 'text-[#4285f4] font-medium' : 'text-[#555]'}`}>
                   {label}
                 </span>
@@ -168,7 +157,6 @@ export default function TimeController({ forecastOpen = false }: Props) {
             );
           })}
         </div>
-
       </div>
     </div>
   );

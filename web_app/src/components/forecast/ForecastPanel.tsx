@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as echarts from 'echarts';
 import {
-  useAppStore,
+  useAirshedStore,
   SLOT_TIMES,
   SLOT_LABELS,
   stepToDayOffset,
   stepToSlot,
   toSubStep,
-} from '../../store/appStore';
+} from '../../store/airshedStore';
+import type { AirshedNetworkPayload } from '../../types/airshed';
+import { CITY_META } from '../../lib/cityMeta';
+import { buildCityForecast, clusterLabel, cityLabel, formatEta } from '../../lib/airshedSelectors';
 
 // ── Data types ────────────────────────────────────────────────────────────────
 export interface SubSlot {
@@ -39,7 +42,7 @@ export interface DayData {
 }
 
 interface Props {
-  data: DayData[];
+  payload: AirshedNetworkPayload;
   onClose: () => void;
 }
 
@@ -161,6 +164,10 @@ const createLineChart = (
             { offset: 1, color: `${lineColor}00` },
           ]),
         },
+        markLine: {
+          silent: true, symbol: 'none',
+          data: [{ xAxis: activeIdx, lineStyle: { color: 'rgba(56,189,248,0.55)', type: 'solid', width: 1 } }],
+        },
       },
       {
         type: 'scatter', data: [[activeIdx, values[activeIdx]]],
@@ -247,6 +254,7 @@ const createChhiChart = (
             { yAxis: 25,  lineStyle: { color: 'rgba(16,185,129,0.2)',  type: 'dashed', width: 1 } },
             { yAxis: 50,  lineStyle: { color: 'rgba(245,158,11,0.2)',  type: 'dashed', width: 1 } },
             { yAxis: 75,  lineStyle: { color: 'rgba(249,115,22,0.2)',  type: 'dashed', width: 1 } },
+            { xAxis: activeIdx, lineStyle: { color: 'rgba(56,189,248,0.55)', type: 'solid', width: 1 } },
           ],
         },
       },
@@ -263,14 +271,21 @@ const createChhiChart = (
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function ForecastPanel({ data, onClose }: Props) {
+export default function ForecastPanel({ payload, onClose }: Props) {
   const chhiChartElRef = useRef<HTMLDivElement>(null);
   const aqiChartRef  = useRef<HTMLDivElement>(null);
   const pm25ChartRef = useRef<HTMLDivElement>(null);
   const tempChartRef = useRef<HTMLDivElement>(null);
 
   const [isExpanded, setIsExpanded] = useState(false);
-  const { selectedSubStep, setSubStep, setTimestamp } = useAppStore();
+  const { selectedSubStep, setSubStep, setTimestamp, selectedCityId } = useAirshedStore();
+  const data = useMemo(() => buildCityForecast(payload, selectedCityId) as DayData[], [payload, selectedCityId]);
+  const activeNode = payload.time_steps[selectedSubStep]?.nodes[selectedCityId];
+  const meta = CITY_META[selectedCityId];
+  const incoming = (payload.time_steps[selectedSubStep]?.active_cascade_pulses ?? []).filter(
+    (p) => p.target_node === selectedCityId,
+  );
+  const originName = incoming[0] ? cityLabel(incoming[0].source_node, payload.time_steps[selectedSubStep]?.nodes[incoming[0].source_node]) : '';
 
   const dayOffset  = stepToDayOffset(selectedSubStep);
   const slotIdx    = stepToSlot(selectedSubStep);
@@ -347,13 +362,11 @@ export default function ForecastPanel({ data, onClose }: Props) {
           </div>
           <div className="min-w-0 overflow-hidden">
             <div className="text-[16px] font-medium tracking-[-0.1px] text-white truncate">
-              Pune, Maharashtra, India
+              {activeNode?.city_name ?? meta?.name ?? selectedCityId}, {meta?.state ?? 'India'}
             </div>
-            <div className="mt-[2px] text-[11px] text-[#8a8a8a] truncate">
-              {activeSlot?.date_str} · {activeSlot?.time} IST ·&nbsp;
-              <span style={{ color: isObserved ? '#79c7a2' : '#4285f4' }}>
-                {isObserved ? 'Observed' : 'AI Forecast'} · {SLOT_LABELS[slotIdx]}
-              </span>
+            <div className="mt-[2px] text-[11px] text-[#8a8a8a] truncate font-mono">
+              {activeNode ? `${activeNode.latitude.toFixed(4)}°N, ${activeNode.longitude.toFixed(4)}°E` : ''}
+              &nbsp;·&nbsp;{activeSlot?.date_str} · {activeSlot?.time} IST
             </div>
           </div>
         </div>
@@ -391,8 +404,33 @@ export default function ForecastPanel({ data, onClose }: Props) {
 
           <div className="relative z-10 px-5 pb-8">
 
-            {/* Section label */}
-            <div className="mt-5 mb-3 text-[11px] font-medium uppercase tracking-[0.16em] text-white">
+            <div className="mt-4 mb-3 flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-white/50">Airshed Regime</span>
+              <span
+                className="text-[10px] px-2.5 py-1 rounded-full border"
+                style={{
+                  color: '#38bdf8',
+                  borderColor: 'rgba(56,189,248,0.35)',
+                  background: 'rgba(56,189,248,0.08)',
+                }}
+              >
+                {activeNode ? clusterLabel(activeNode.cluster_id, payload) : '—'}
+              </span>
+              <span className="text-[10px] font-mono text-white/40">
+                {isObserved ? 'OBSERVED' : 'FORECAST'} · {SLOT_LABELS[slotIdx]}
+              </span>
+            </div>
+
+            {incoming[0] && (
+              <div className="mb-4 rounded-[12px] border border-[#f97316]/40 bg-[#f97316]/10 px-3 py-2.5 text-[11px] leading-relaxed">
+                <span className="font-semibold text-[#f97316]">⚠️ INCOMING CASCADE:</span>
+                <span className="text-white/85">
+                  {' '}Origin: {originName} ({incoming[0].source_node}) • ETA: {formatEta(incoming[0].estimated_arrival_ist)} • Confidence: {incoming[0].confidence_pct.toFixed(1)}% • ΔPM2.5: +{incoming[0].severity_delta_pm25.toFixed(0)} µg/m³
+                </span>
+              </div>
+            )}
+
+            <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.16em] text-white">
               Forecast · 7 Days · 42 Sub-Daily Slots
             </div>
 
@@ -604,6 +642,27 @@ export default function ForecastPanel({ data, onClose }: Props) {
                 ))}
               </DividerRow>
               <div className="mt-1"><div ref={tempChartRef} className="h-[140px] w-full" /></div>
+            </section>
+
+            <section className="mt-5">
+              <div style={S.rowGrid} className="items-center">
+                <div className="pr-2">
+                  <div className="flex h-[36px] flex-col items-start justify-center rounded-[7px] bg-[#1769d1] px-2">
+                    <span className="text-[13px] font-medium text-white leading-none">Max Wind</span>
+                    <span className="text-[10px] text-white/50 leading-none mt-0.5">km/h</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-7 gap-[3px]">
+                  {data.map((d) => (
+                    <button key={`wind-${d.offset}`} type="button"
+                      onClick={() => { setTimestamp(d.offset); setSubStep(toSubStep(d.offset, slotIdx)); }}
+                      className={`h-[36px] rounded-[7px] text-[13px] font-semibold bg-[#1a1a1a] text-white border border-[#2a2a2a] transition
+                        ${d.offset === dayOffset ? 'ring-1 ring-[#4285f4] ring-offset-1 ring-offset-[#090909]' : ''}`}>
+                      {Number(d.wind_speed_max).toFixed(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </section>
 
             {/* ── ACTIVE SLOT SUMMARY ── */}
