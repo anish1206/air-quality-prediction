@@ -315,18 +315,41 @@ export default function AirshedNetworkMap() {
   useEffect(() => {
     const instance = map.current;
     if (!instance) return;
+
     const apply = () => {
-      const set = (id: string, data: FC) => {
+      if (!instance.getSource('pins')) return;
+      const setData = (id: string, data: FC) => {
         const src = instance.getSource(id) as maplibregl.GeoJSONSource | undefined;
         src?.setData(data as never);
       };
-      set('pins', geo.pins);
-      set('edges', geo.edges);
-      set('pulses', geo.pulses);
-      set('plumes', geo.plumes);
+      setData('pins',   geo.pins);
+      setData('edges',  geo.edges);
+      setData('pulses', geo.pulses);
+      setData('plumes', geo.plumes);
     };
-    if (instance.isStyleLoaded() && instance.getSource('pins')) apply();
-    else instance.once('idle', apply);
+
+    // Case 1: Map is fully ready right now — apply immediately
+    if (instance.isStyleLoaded() && instance.getSource('pins')) {
+      apply();
+      return;
+    }
+
+    // Case 2: Map style is loaded but sources not added yet (shouldn't happen, but guard anyway)
+    if (instance.isStyleLoaded()) {
+      const onSourceData = () => {
+        if (instance.getSource('pins')) {
+          apply();
+          instance.off('sourcedata', onSourceData);
+        }
+      };
+      instance.on('sourcedata', onSourceData);
+      return () => instance.off('sourcedata', onSourceData);
+    }
+
+    // Case 3: Map hasn't loaded yet — wait for 'load' then apply
+    const onLoad = () => apply();
+    instance.once('load', onLoad);
+    return () => instance.off('load', onLoad);
   }, [geo]);
 
   useEffect(() => {

@@ -32,14 +32,17 @@ export interface CityNodeStatus {
   us_aqi: number;
   pm2_5: number;
   pm10: number;
-  nitrogen_dioxide: number;
+  // JSON uses "no2" — keep both so nothing breaks
+  no2: number;
+  nitrogen_dioxide: number; // computed alias in selectors
   temp: number;
   humidity: number;
   wind_speed: number;
   wind_dir: number;
   wind_u: number;
   wind_v: number;
-  chhi_score: number;
+  anomaly_z_score: number;  // raw JSON field
+  chhi_score: number;        // derived: zToChhi(anomaly_z_score)
   hazard_level: HazardLevel;
   is_trigger_active: boolean;
 }

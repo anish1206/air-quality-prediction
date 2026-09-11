@@ -1,8 +1,29 @@
 import { create } from 'zustand';
-import type { AirshedMetric, AirshedNetworkPayload, LayerVisibility } from '../types/airshed';
-import { TOTAL_STEPS, stepToDayOffset, toSubStep, stepToSlot } from '../lib/airshedSelectors';
+import type { AirshedMetric, AirshedNetworkPayload, CityNodeStatus, LayerVisibility } from '../types/airshed';
+import { TOTAL_STEPS, stepToDayOffset, toSubStep, stepToSlot, zToChhi } from '../lib/airshedSelectors';
 
 export { SLOTS_PER_DAY, TOTAL_STEPS, SLOT_TIMES, SLOT_LABELS, stepToDayOffset, stepToSlot, toSubStep } from '../lib/airshedSelectors';
+
+// ── Enrich raw JSON nodes with derived fields ─────────────────────────────────
+// The JSON has `no2` and `anomaly_z_score` but the UI expects `nitrogen_dioxide`
+// and `chhi_score`. We compute them once on load so all consumers just read them.
+const enrichPayload = (raw: AirshedNetworkPayload): AirshedNetworkPayload => ({
+  ...raw,
+  time_steps: raw.time_steps.map((ts) => ({
+    ...ts,
+    nodes: Object.fromEntries(
+      Object.entries(ts.nodes).map(([id, n]) => {
+        const chhi = zToChhi((n as any).anomaly_z_score ?? 0);
+        const enriched: CityNodeStatus = {
+          ...n,
+          chhi_score: chhi,
+          nitrogen_dioxide: (n as any).no2 ?? (n as any).nitrogen_dioxide ?? 0,
+        };
+        return [id, enriched];
+      }),
+    ),
+  })),
+});
 
 interface AirshedState {
   payload: AirshedNetworkPayload | null;
@@ -37,7 +58,7 @@ export const useAirshedStore = create<AirshedState>((set) => ({
   isForecastPanelOpen: true,
   isLayerPanelOpen: true,
 
-  setPayload: (payload) => set({ payload }),
+  setPayload: (payload) => set({ payload: enrichPayload(payload) }),
   setCityId: (id) => set({ selectedCityId: id }),
   setSubStep: (s) => {
     const step = Math.max(0, Math.min(TOTAL_STEPS - 1, s));
