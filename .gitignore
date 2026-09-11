@@ -1,0 +1,7 @@
+
+# Large model files
+data/aqi_forecast_model.pkl
+*.pkl
+*.h5
+*.pt
+*.pth
