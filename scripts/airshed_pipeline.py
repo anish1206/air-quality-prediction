@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 from requests_cache import CachedSession
 from retry_requests import retry
@@ -35,6 +36,11 @@ FORECAST_DAYS = 4
 TIME_SLOTS = [0, 4, 8, 12, 16, 20]  # 4-hour bins
 PM25_THRESHOLD = 100  # Trigger threshold
 PM25_SEVERE_THRESHOLD = 120  # Severe spike threshold
+
+# Single shared HTTP session — created once, reused for all cities
+_cache_session = CachedSession(".cache_live", expire_after=3600)
+HTTP_SESSION = retry(_cache_session, retries=2, backoff_factor=0.3)
+REQUEST_TIMEOUT = 15  # seconds per HTTP call — prevents indefinite hangs
 
 
 def load_artifacts():
@@ -72,13 +78,10 @@ def fetch_live_data(city):
     """
     Fetch live weather and air quality data for a single city.
     Returns combined DataFrame with 4-hour resampled data.
+    Uses the module-level shared HTTP session (with cache + retry).
     """
     lat, lon = city['lat'], city['lon']
-    
-    # Configure cached session
-    cache_session = CachedSession(".cache_live", expire_after=3600)  # 1 hour cache
-    retry_session = retry(cache_session, retries=3, backoff_factor=1)
-    
+
     # Fetch weather data
     weather_params = {
         "latitude": lat,
@@ -95,12 +98,14 @@ def fetch_live_data(city):
         ],
         "timezone": TIMEZONE
     }
-    
+
     try:
-        weather_response = retry_session.get(WEATHER_FORECAST_URL, params=weather_params)
+        weather_response = HTTP_SESSION.get(
+            WEATHER_FORECAST_URL, params=weather_params, timeout=REQUEST_TIMEOUT
+        )
         weather_response.raise_for_status()
         weather_data = weather_response.json()
-        
+
         hourly_weather = weather_data.get("hourly", {})
         weather_df = pd.DataFrame({
             "time": pd.to_datetime(hourly_weather.get("time", [])),
@@ -112,9 +117,9 @@ def fetch_live_data(city):
             "wind_direction": hourly_weather.get("wind_direction_10m", [])
         })
     except Exception as e:
-        print(f"Error fetching weather for {city['name']}: {e}")
+        print(f"  [WARN] Weather fetch failed for {city['name']}: {e}")
         weather_df = pd.DataFrame()
-    
+
     # Fetch air quality data
     aq_params = {
         "latitude": lat,
@@ -124,12 +129,14 @@ def fetch_live_data(city):
         "hourly": ["pm2_5", "pm10", "nitrogen_dioxide", "us_aqi"],
         "timezone": TIMEZONE
     }
-    
+
     try:
-        aq_response = retry_session.get(AIR_QUALITY_FORECAST_URL, params=aq_params)
+        aq_response = HTTP_SESSION.get(
+            AIR_QUALITY_FORECAST_URL, params=aq_params, timeout=REQUEST_TIMEOUT
+        )
         aq_response.raise_for_status()
         aq_data = aq_response.json()
-        
+
         hourly_aq = aq_data.get("hourly", {})
         aq_df = pd.DataFrame({
             "time": pd.to_datetime(hourly_aq.get("time", [])),
@@ -139,15 +146,15 @@ def fetch_live_data(city):
             "us_aqi": hourly_aq.get("us_aqi", [])
         })
     except Exception as e:
-        print(f"Error fetching air quality for {city['name']}: {e}")
+        print(f"  [WARN] AQ fetch failed for {city['name']}: {e}")
         aq_df = pd.DataFrame()
-    
+
     # Merge datasets
     if not weather_df.empty and not aq_df.empty:
         df = pd.merge(weather_df, aq_df, on="time", how="inner")
     else:
         df = pd.DataFrame()
-    
+
     return df
 
 
@@ -429,25 +436,26 @@ def main():
     # Load artifacts
     cities_metadata, cluster_metadata, causal_graph, cascade_model = load_artifacts()
     
-    # Fetch live data for all cities
-    print("\nFetching live data for all cities...")
+    # Fetch live data for all cities IN PARALLEL (8 threads — respects open-meteo rate limits)
+    print("\nFetching live data for all cities (parallel)...")
     cities_data = {}
-    
-    for city in cities_metadata:
+
+    def _fetch(city):
         print(f"  Fetching {city['name']}...")
         city_df = fetch_live_data(city)
-        
         if not city_df.empty:
             city_df = resample_to_4h(city_df)
             city_df = compute_wind_vectors(city_df)
-            
-            # Use simple historical mean/std for anomaly calculation
-            # In production, this would come from historical data
             pm25_mean = city_df['pm2_5'].mean() if 'pm2_5' in city_df.columns else 50
-            pm25_std = city_df['pm2_5'].std() if 'pm2_5' in city_df.columns else 20
+            pm25_std  = city_df['pm2_5'].std()  if 'pm2_5' in city_df.columns else 20
             city_df = compute_anomaly_zscore(city_df, pm25_mean, pm25_std)
-        
-        cities_data[city['id']] = city_df
+        return city['id'], city_df
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = {pool.submit(_fetch, city): city for city in cities_metadata}
+        for future in as_completed(futures):
+            city_id, city_df = future.result()
+            cities_data[city_id] = city_df
     
     # Build 42 time steps
     print("\nBuilding 42 time steps...")

@@ -31,6 +31,7 @@ jobs:
           pip install pandas numpy scikit-learn xgboost joblib requests requests-cache retry-requests pyarrow tqdm
 
       - name: Execute Operational Airshed Inference Pipeline
+        timeout-minutes: 12
         run: |
           python scripts/airshed_pipeline.py
 
