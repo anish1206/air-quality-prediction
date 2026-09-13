@@ -11,13 +11,13 @@ import type maplibregl from 'maplibre-gl';
 import type { CityNodeStatus } from '../../types/airshed';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const N_PARTICLES   = 1800;   // particle count — keeps 60 FPS
-const LIFESPAN_MIN  = 35;
-const LIFESPAN_MAX  = 65;
-const SPEED_SCALE   = 0.18;   // pixel-per-frame multiplier for wind vectors
-const TRAIL_ALPHA   = 0.93;   // canvas fade factor — higher = shorter trails
-const PARTICLE_W    = 1.8;    // stroke line width
-const STREAM_COLOR  = '56, 189, 248';   // #38bdf8 cyan — matches accent token
+const N_PARTICLES   = 2200;
+const LIFESPAN_MIN  = 45;
+const LIFESPAN_MAX  = 80;
+const SPEED_SCALE   = 0.00045; // gentle atmospheric drift — 75% slower than before
+const TRAIL_ALPHA   = 0.94;    // higher = shorter, cleaner trails
+const PARTICLE_W    = 1.2;
+const STREAM_COLOR  = '56, 189, 248';
 const INDIA_BOUNDS  = { minLon: 66, maxLon: 98, minLat: 6, maxLat: 38 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -107,8 +107,8 @@ export default function WindParticleCanvas({ mapInstance, nodes, visible }: Prop
         return;
       }
 
-      // Fade trail
-      ctx.fillStyle = `rgba(10,10,10,${1 - TRAIL_ALPHA})`;
+      // Fade trail — fillStyle alpha = 1 - TRAIL_ALPHA gives the fade-per-frame amount
+      ctx.fillStyle = `rgba(10,10,10,0.06)`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       ctx.lineWidth = PARTICLE_W;
@@ -122,31 +122,26 @@ export default function WindParticleCanvas({ mapInstance, nodes, visible }: Prop
         // Interpolate wind at current geo position
         const { u, v } = interpWind(p.lon, p.lat, nodeWinds);
 
-        // Move in screen space — project derivative
-        // u = eastward m/s → positive x; v = northward m/s → negative y (screen)
-        const speed  = Math.hypot(u, v);
-        const scale  = SPEED_SCALE * (0.6 + 0.4 * Math.min(speed / 20, 1));
-        const dx     = u * scale;
-        const dy     = -v * scale;
+        // Move in geo space (u/v are m/s wind components, scale to degrees/frame)
+        const dx = u * SPEED_SCALE;
+        const dy = -v * SPEED_SCALE; // v northward → negative screen-y
 
-        // Draw segment from old to new position
+        // Project to screen for drawing
+        const oldPt = map.project([p.lon, p.lat]);
+        const newLon = p.lon + dx;
+        const newLat = p.lat + dy;
+        const newPt  = map.project([newLon, newLat]);
+
         ctx.beginPath();
-        ctx.strokeStyle = `rgba(${STREAM_COLOR},${p.alpha * 0.45})`;
-        ctx.moveTo(p.x, p.y);
-
-        const nx = p.x + dx;
-        const ny = p.y + dy;
-        ctx.lineTo(nx, ny);
+        ctx.strokeStyle = `rgba(${STREAM_COLOR}, ${p.alpha * 0.28})`;
+        ctx.moveTo(oldPt.x, oldPt.y);
+        ctx.lineTo(newPt.x, newPt.y);
         ctx.stroke();
 
-        // Update position
-        p.x = nx;
-        p.y = ny;
-
-        // Back-project to geo for IDW interpolation next frame
-        const lngLat = map.unproject([p.x, p.y]);
-        p.lon = lngLat.lng;
-        p.lat = lngLat.lat;
+        p.lon = newLon;
+        p.lat = newLat;
+        p.x   = newPt.x;
+        p.y   = newPt.y;
 
         p.life += 1;
 
@@ -167,8 +162,8 @@ export default function WindParticleCanvas({ mapInstance, nodes, visible }: Prop
 
     rafRef.current = requestAnimationFrame(frame);
 
-    // ── Sync canvas position on map move ──────────────────────────────────
-    // Re-project all particles after pan/zoom so they stay geo-anchored
+    // ── Sync canvas screen position on map move ───────────────────────────
+    // Particles are stored in geo coords — just re-project on pan/zoom
     const onMapMove = () => {
       for (const p of particles.current) {
         const pt = map.project([p.lon, p.lat]);

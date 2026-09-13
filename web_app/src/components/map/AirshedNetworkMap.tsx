@@ -16,7 +16,6 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useAirshedStore } from '../../store/airshedStore';
 import type { AirshedNetworkPayload, AirshedTimeStep, CityNodeStatus } from '../../types/airshed';
 import { clusterColor, getHazardStyle } from '../../lib/airshedSelectors';
-import { CITY_META, CLUSTER_DISPLAY } from '../../lib/cityMeta';
 import { createBezierStreamline, createClusterEnvelope } from '../../utils/geoSplines';
 import WindParticleCanvas from './WindParticleCanvas';
 
@@ -52,26 +51,8 @@ const metricValue = (node: CityNodeStatus, metric: string) => {
   return node.chhi_score;
 };
 
-// ── Directional plume ellipse ─────────────────────────────────────────────────
-const plumeRing = (
-  lon: number, lat: number, u: number, v: number,
-): [number, number][] => {
-  const mag = Math.hypot(u, v);
-  const dx  = mag > 0.15 ? u / mag : 0;
-  const dy  = mag > 0.15 ? v / mag : 1;
-  const px  = -dy; const py = dx;
-  const len = 0.22 + Math.min(mag, 18) * 0.028;
-  const hw  = 0.07;
-  const pts: [number, number][] = [];
-  for (let i = 0; i <= 24; i++) {
-    const a  = (i / 24) * Math.PI * 2;
-    const lx = Math.cos(a) * hw;
-    const ly = Math.sin(a) * len * 0.5 + len * 0.45;
-    pts.push([lon + lx * px + ly * dx, lat + lx * py + ly * dy]);
-  }
-  pts.push(pts[0]);
-  return pts;
-};
+
+
 
 // ── Layer builder ─────────────────────────────────────────────────────────────
 const buildLayers = (
@@ -165,20 +146,16 @@ const buildLayers = (
     }),
   };
 
-  // ── 4. Directional plumes ──────────────────────────────────────────────────
+  // ── 4. Emission heatmap points (replaces polygon plumes) ─────────────────
   const plumes: FC = {
     type: 'FeatureCollection',
     features: visible.map(([id, n]) => ({
       type: 'Feature',
       properties: {
         id,
-        fill:   hexToRgba(clusterColor(n.cluster_id, payload), 0.20),
-        stroke: hexToRgba(clusterColor(n.cluster_id, payload), 0.60),
+        intensity: Math.max(0.1, metricValue(n, metric) / 200),
       },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [plumeRing(n.longitude, n.latitude, n.wind_u, n.wind_v)],
-      },
+      geometry: { type: 'Point', coordinates: [n.longitude, n.latitude] },
     })),
   };
 
@@ -251,59 +228,61 @@ export default function AirshedNetworkMap() {
       instance.addSource('pins',      { type: 'geojson', data: emptyFC() });
       instance.addSource('pulses',    { type: 'geojson', data: emptyFC() });
 
-      // ── Layer 1: Cluster envelopes ────────────────────────────────────────
+      // ── Layer 1: Cluster envelopes (one per airshed regime) ──────────────
       instance.addLayer({
         id: 'envelope-fill', type: 'fill', source: 'envelopes',
         paint: {
           'fill-color':   ['get', 'fill'],
-          'fill-opacity': ['case', ['==', ['get', 'active'], 1], 0.22, 0.10],
+          'fill-opacity': 0.08,
         },
       });
       instance.addLayer({
         id: 'envelope-glow', type: 'line', source: 'envelopes',
         paint: {
           'line-color':   ['get', 'stroke'],
-          'line-width':   ['case', ['==', ['get', 'active'], 1], 2.5, 1.2],
-          'line-opacity': ['case', ['==', ['get', 'active'], 1], 0.80, 0.35],
-          'line-blur':    6,
+          'line-width':   1.5,
+          'line-opacity': 0.35,
+          'line-blur':    4,
         },
       });
+
+      // ── Layer 2: Gaussian heatmap emission plumes ─────────────────────────
+      // Replaces hard-edged polygon ovals — fully borderless volumetric blobs
       instance.addLayer({
-        id: 'envelope-line', type: 'line', source: 'envelopes',
+        id: 'plumes-heat',
+        type: 'heatmap',
+        source: 'plumes',
         paint: {
-          'line-color':   ['get', 'stroke'],
-          'line-width':   1,
-          'line-opacity': ['case', ['==', ['get', 'active'], 1], 0.70, 0.25],
+          'heatmap-weight':     ['interpolate', ['linear'], ['get', 'intensity'], 0, 0, 1, 1],
+          'heatmap-intensity':  ['interpolate', ['linear'], ['zoom'], 3, 0.6, 8, 1.8],
+          'heatmap-radius':     ['interpolate', ['linear'], ['zoom'], 4, 30, 8, 90],
+          'heatmap-opacity':    0.55,
+          'heatmap-color': [
+            'interpolate', ['linear'], ['heatmap-density'],
+            0,    'rgba(0,0,0,0)',
+            0.25, 'rgba(16,185,129,0.30)',
+            0.55, 'rgba(245,158,11,0.50)',
+            1.0,  'rgba(225,29,72,0.75)',
+          ],
         },
       });
 
-      // ── Layer 2: Plume ellipses ────────────────────────────────────────────
-      instance.addLayer({
-        id: 'plumes-fill', type: 'fill', source: 'plumes',
-        paint: { 'fill-color': ['get', 'fill'], 'fill-opacity': 0.80 },
-      });
-      instance.addLayer({
-        id: 'plumes-line', type: 'line', source: 'plumes',
-        paint: { 'line-color': ['get', 'stroke'], 'line-width': 1.0, 'line-opacity': 0.65 },
-      });
-
-      // ── Layer 3: Bézier causal edges ──────────────────────────────────────
+      // ── Layer 3: Bézier aerodynamic causal streamlines ───────────────────
       instance.addLayer({
         id: 'edges-glow', type: 'line', source: 'edges',
         paint: {
           'line-color':   ['get', 'color'],
-          'line-width':   ['interpolate', ['linear'], ['get', 'weight'], 0.15, 2.5, 1, 5],
-          'line-opacity': 0.18,
-          'line-blur':    3.5,
+          'line-width':   3,
+          'line-opacity': 0.12,
+          'line-blur':    4,
         },
       });
       instance.addLayer({
         id: 'edges-core', type: 'line', source: 'edges',
         paint: {
-          'line-color':      ['get', 'color'],
-          'line-width':      ['interpolate', ['linear'], ['get', 'weight'], 0.15, 0.7, 1, 1.8],
-          'line-opacity':    0.55,
-          'line-dasharray':  [3, 2],
+          'line-color':   ['get', 'color'],
+          'line-width':   1.5,
+          'line-opacity': 0.35,
         },
       });
 
@@ -361,12 +340,12 @@ export default function AirshedNetworkMap() {
       instance.addLayer({
         id: 'cascade-pulses', type: 'circle', source: 'pulses',
         paint: {
-          'circle-radius':       7,
+          'circle-radius':       4,
           'circle-color':        '#38bdf8',
-          'circle-blur':         0.15,
-          'circle-stroke-width': 2,
+          'circle-blur':         0.3,
+          'circle-stroke-width': 1,
           'circle-stroke-color': '#f97316',
-          'circle-opacity':      0.95,
+          'circle-opacity':      0.90,
         },
       });
 
@@ -383,20 +362,17 @@ export default function AirshedNetworkMap() {
         pulseT.current += 0.042;
         const t = pulseT.current;
         if (instance.getLayer('edges-core')) {
-          instance.setPaintProperty('edges-core', 'line-opacity', 0.35 + 0.22 * Math.sin(t));
+          // Gentle edge opacity pulse
+          instance.setPaintProperty('edges-core', 'line-opacity', 0.25 + 0.12 * Math.sin(t));
+          // Hazard ring breathing
           instance.setPaintProperty('pin-rings', 'circle-radius', [
             'case', ['==', ['get', 'trigger'], 1],
-            14 + 4 * (0.5 + 0.5 * Math.sin(t * 1.6)),
-            10 + 2.5 * (0.5 + 0.5 * Math.sin(t)),
+            14 + 3 * (0.5 + 0.5 * Math.sin(t * 1.6)),
+            10 + 2 * (0.5 + 0.5 * Math.sin(t)),
           ]);
+          // Cascade pulse glow
           instance.setPaintProperty('cascade-pulses', 'circle-radius',
-            6 + 3 * (0.5 + 0.5 * Math.sin(t * 2)));
-          // Pulse envelope glow opacity
-          instance.setPaintProperty('envelope-glow', 'line-opacity', [
-            'case', ['==', ['get', 'active'], 1],
-            0.65 + 0.15 * (0.5 + 0.5 * Math.sin(t * 0.7)),
-            0.25,
-          ]);
+            3.5 + 1.5 * (0.5 + 0.5 * Math.sin(t * 2)));
         }
         raf.current = requestAnimationFrame(tick);
       };
@@ -453,11 +429,9 @@ export default function AirshedNetworkMap() {
     vis('edges-glow',      layerVisibility.edges);
     vis('edges-core',      layerVisibility.edges);
     vis('cascade-pulses',  layerVisibility.pulses);
-    vis('plumes-fill',     layerVisibility.plumes);
-    vis('plumes-line',     layerVisibility.plumes);
+    vis('plumes-heat',     layerVisibility.plumes);
     vis('envelope-fill',   layerVisibility.plumes);
     vis('envelope-glow',   layerVisibility.plumes);
-    vis('envelope-line',   layerVisibility.plumes);
     vis('pin-auras',       layerVisibility.pins);
     vis('pin-rings',       layerVisibility.pins);
     vis('pin-cores',       layerVisibility.pins);
