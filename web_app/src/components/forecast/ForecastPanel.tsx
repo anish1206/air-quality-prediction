@@ -165,7 +165,7 @@ const createLineChart = (
           ]),
         },
         markLine: {
-          silent: true, symbol: 'none',
+          silent: true, symbol: 'none', label: { show: false },
           data: [{ xAxis: activeIdx, lineStyle: { color: 'rgba(56,189,248,0.55)', type: 'solid', width: 1 } }],
         },
       },
@@ -249,7 +249,7 @@ const createChhiChart = (
           ],
         },
         markLine: {
-          silent: true, symbol: 'none',
+          silent: true, symbol: 'none', label: { show: false },
           data: [
             { yAxis: 25,  lineStyle: { color: 'rgba(16,185,129,0.2)',  type: 'dashed', width: 1 } },
             { yAxis: 50,  lineStyle: { color: 'rgba(245,158,11,0.2)',  type: 'dashed', width: 1 } },
@@ -324,15 +324,6 @@ export default function ForecastPanel({ payload, onClose }: Props) {
   useEffect(() => initChart(pm25ChartRef, allSlots.map((s) => s.pm2_5),   ' µg/m³', '#79c7a2'), [data, selectedSubStep]);
   useEffect(() => initChart(tempChartRef, allSlots.map((s) => s.temp),    '°C',     '#e5a06f'), [data, selectedSubStep]);
 
-  // ── Active column highlight ───────────────────────────────────────────────
-  const activeColIdx = dayOffset + 3;
-  const highlightStyle: React.CSSProperties = {
-    position: 'absolute', top: 20, bottom: 170,
-    left:  `calc(38px + ${LABEL_COL}px + ${activeColIdx} * (100% - 80px - ${LABEL_COL}px) / ${N_COLS})`,
-    width: `calc((100% - 40px - ${LABEL_COL}px) / ${N_COLS})`,
-    background: 'rgba(255,255,255,0.045)', pointerEvents: 'none', zIndex: 1,
-  };
-
   const DividerRow = ({ left, children }: { left: React.ReactNode; children: React.ReactNode }) => (
     <div style={S.rowGrid} className="border-b border-[#252525]">
       <div className="py-2 text-[11px] text-white">{left}</div>
@@ -400,8 +391,6 @@ export default function ForecastPanel({ payload, onClose }: Props) {
         style={{ overflowX: isExpanded ? 'hidden' : 'auto' }}
       >
         <div style={{ width: `${CONTENT_W}px`, minHeight: '100%', position: 'relative' }}>
-          <div style={highlightStyle} />
-
           <div className="relative z-10 px-5 pb-8">
 
             <div className="mt-4 mb-3 flex items-center gap-2 flex-wrap">
@@ -647,8 +636,8 @@ export default function ForecastPanel({ payload, onClose }: Props) {
             <section className="mt-5">
               <div style={S.rowGrid} className="items-center">
                 <div className="pr-2">
-                  <div className="flex h-[36px] flex-col items-start justify-center rounded-[7px] bg-[#1769d1] px-2">
-                    <span className="text-[13px] font-medium text-white leading-none">Max Wind</span>
+                  <div className="flex h-[36px] flex-col items-start justify-center rounded-[7px] bg-[#1769d1] px-1.5">
+                    <span className="text-[12px] font-medium text-white leading-none whitespace-nowrap tracking-tight">Max Wind</span>
                     <span className="text-[10px] text-white/50 leading-none mt-0.5">km/h</span>
                   </div>
                 </div>
