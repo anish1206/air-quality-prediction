@@ -5,3 +5,4 @@ data/aqi_forecast_model.pkl
 *.h5
 *.pt
 *.pth
+.idea/
