@@ -2,9 +2,8 @@
  * AirshedNetworkMap — Operational Atmospheric Console with Native MapLibre Layers.
  *
  * Layers (bottom → top):
- *  0. WeatherLab Cloud Field — IDW stepped-threshold raster canvas over India
  *  1. Cluster Envelopes     — smoothed convex-hull basin polygons per airshed regime
- *  2. Atmospheric Halos     — soft blurred native city node halos (blends regional smog seamlessly)
+ *  2. Dynamic Plumes        — soft Gaussian radial fadeout plumes advected by wind vectors
  *  3. Bézier Transport      — clean curved streamlines with midpoint ETA badges
  *  4. Station Pins & Badges — visual triage pins, breathing hazard rings & text pills
  *  5. Cascade Pulses        — animated particles along active causal edges
@@ -16,10 +15,9 @@ import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useAirshedStore } from '../../store/airshedStore';
 import type { AirshedNetworkPayload, AirshedTimeStep, CityNodeStatus } from '../../types/airshed';
-import { clusterColor, getHazardStyle } from '../../lib/airshedSelectors';
+import { clusterColor } from '../../lib/airshedSelectors';
 import { createBezierStreamline, createClusterEnvelope } from '../../utils/geoSplines';
 import WindParticleCanvas from './WindParticleCanvas';
-import { addWeatherLabLayer, updateWeatherLabImage, setWeatherLabVisibility } from './WeatherLabRasterLayer';
 
 // ── GeoJSON helpers ───────────────────────────────────────────────────────────
 type FC = {
@@ -62,6 +60,71 @@ function distKm(lon1: number, lat1: number, lon2: number, lat2: number): number 
         Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return 6371 * c;
+}
+
+// Helper function to return severity color based purely on the active metric value
+export function getSeverityColor(val: number, metric: string): { bg: string; border: string; glow: string } {
+    if (metric === 'chhi_score') {
+        if (val > 75) {
+            // Critical Hazard -> Crimson Red
+            return { bg: 'rgba(225, 29, 72, 0.85)', border: '#e11d48', glow: 'rgba(225, 29, 72, 0.45)' };
+        } else if (val > 50) {
+            // High Hazard -> Flame Orange
+            return { bg: 'rgba(249, 115, 22, 0.80)', border: '#f97316', glow: 'rgba(249, 115, 22, 0.40)' };
+        } else if (val > 25) {
+            // Moderate -> Amber Yellow
+            return { bg: 'rgba(234, 179, 8, 0.70)', border: '#eab308', glow: 'rgba(234, 179, 8, 0.35)' };
+        } else {
+            // Low Risk (<= 25) -> MINT GREEN!
+            return { bg: 'rgba(34, 197, 94, 0.75)', border: '#22c55e', glow: 'rgba(34, 197, 94, 0.35)' };
+        }
+    }
+
+    // Fallback for US AQI / PM2.5 / NO2
+    if (val > 150) return { bg: 'rgba(225, 29, 72, 0.85)', border: '#e11d48', glow: 'rgba(225, 29, 72, 0.45)' };
+    if (val > 100) return { bg: 'rgba(249, 115, 22, 0.80)', border: '#f97316', glow: 'rgba(249, 115, 22, 0.40)' };
+    if (val > 50)  return { bg: 'rgba(234, 179, 8, 0.70)', border: '#eab308', glow: 'rgba(234, 179, 8, 0.35)' };
+    return { bg: 'rgba(34, 197, 94, 0.75)', border: '#22c55e', glow: 'rgba(34, 197, 94, 0.35)' };
+}
+
+// Helper function to build dynamic GeoJSON for the ACTIVE time step
+export function getDynamicPlumeGeoJSON(currentStep: AirshedTimeStep, selectedMetric: string) {
+    if (!currentStep || !currentStep.nodes) return { type: 'FeatureCollection' as const, features: [] };
+
+    const features = Object.entries(currentStep.nodes).map(([cityId, node]) => {
+        // 1. Get the exact value for THIS specific time step
+        const val = Number(
+            node[selectedMetric as keyof CityNodeStatus] ??
+            (selectedMetric === 'nitrogen_dioxide' ? (node as any).no2 : 0) ??
+            0
+        );
+
+        // 2. Determine color and radius strictly based on this value
+        const { glow } = getSeverityColor(val, selectedMetric);
+        const plumeRadius = val > 75 ? 55 : (val > 50 ? 42 : (val > 25 ? 30 : 20));
+
+        // 3. Shift coordinates downwind based on wind vectors
+        const windU = Number(node.wind_u || 0);
+        const windV = Number(node.wind_v || 0);
+        const offsetLng = node.longitude + (windU * 0.035);
+        const offsetLat = node.latitude + (windV * 0.035);
+
+        return {
+            type: 'Feature' as const,
+            geometry: {
+                type: 'Point' as const,
+                coordinates: [offsetLng, offsetLat] as [number, number],
+            },
+            properties: {
+                cityId,
+                val,
+                plume_color: glow, // Use the dynamic risk glow color! NOT cluster.color_hex!
+                plume_radius: plumeRadius,
+            },
+        };
+    });
+
+    return { type: 'FeatureCollection' as const, features };
 }
 
 // ── Layer builder ─────────────────────────────────────────────────────────────
@@ -158,12 +221,17 @@ const buildLayers = (
     const pins: FC = {
         type: 'FeatureCollection',
         features: visible.map(([id, n]) => {
-            const hazard = getHazardStyle(n.chhi_score);
             const val = Math.round(metricValue(n, metric));
+            const sev = getSeverityColor(val, metric);
 
             let severityClass = 0;
-            if (n.chhi_score > 50) severityClass = 2;
-            else if (n.chhi_score > 25) severityClass = 1;
+            if (metric === 'chhi_score') {
+                if (val > 50) severityClass = 2;
+                else if (val > 25) severityClass = 1;
+            } else {
+                if (val > 100) severityClass = 2;
+                else if (val > 50) severityClass = 1;
+            }
 
             return {
                 type: 'Feature',
@@ -171,8 +239,8 @@ const buildLayers = (
                     id,
                     name: n.city_name,
                     cluster_id: n.cluster_id,
-                    color: clusterColor(n.cluster_id, payload),
-                    ring: hazard.color,
+                    color: sev.border, // Dynamic risk severity color (inner dot)
+                    ring: sev.border,  // Dynamic risk severity color (border ring)
                     value: val,
                     chhi_score: n.chhi_score,
                     trigger: n.is_trigger_active ? 1 : 0,
@@ -247,7 +315,11 @@ export default function AirshedNetworkMap() {
         instance.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
 
         instance.on('load', () => {
-            // ── Sources ──────────────────────────────────────────────────────────
+            const initialStep = payload?.time_steps[selectedSubStep] ?? payload?.time_steps[0];
+            instance.addSource('dynamic-plumes-source', {
+                type: 'geojson',
+                data: initialStep ? (getDynamicPlumeGeoJSON(initialStep, selectedMetric) as never) : emptyFC(),
+            });
             instance.addSource('envelopes', { type: 'geojson', data: emptyFC() });
             instance.addSource('edges', { type: 'geojson', data: emptyFC() });
             instance.addSource('edge-badges', { type: 'geojson', data: emptyFC() });
@@ -272,27 +344,21 @@ export default function AirshedNetworkMap() {
                 },
             });
 
-            // ── Layer 2: Native Atmospheric City Halos (Smooth Regional Smog Blend) ─
+            // ── Layer 2: Station-Anchored Dynamic Atmospheric Plumes ──────────────
             instance.addLayer({
-                id: 'atmospheric-city-halos',
+                id: 'dynamic-plumes-layer',
                 type: 'circle',
-                source: 'pins',
+                source: 'dynamic-plumes-source',
                 paint: {
+                    // Read directly from the feature properties calculated above!
+                    'circle-color': ['get', 'plume_color'],
                     'circle-radius': [
                         'interpolate', ['linear'], ['zoom'],
-                        4, ['*', ['get', 'value'], 0.35],
-                        7, ['*', ['get', 'value'], 0.90],
-                        10, ['*', ['get', 'value'], 1.80],
+                        4, ['get', 'plume_radius'],
+                        8, ['*', ['get', 'plume_radius'], 2.5],
                     ],
-                    'circle-color': [
-                        'interpolate', ['linear'], ['get', 'value'],
-                        0, 'rgba(16, 185, 129, 0.25)',  // Emerald
-                        25, 'rgba(245, 158, 11, 0.35)',  // Amber
-                        50, 'rgba(249, 115, 22, 0.50)',  // Flame Orange
-                        75, 'rgba(225, 29, 72, 0.65)',   // Crimson
-                    ],
-                    'circle-blur': 0.95,
-                    'circle-opacity': 0.75,
+                    'circle-blur': 0.90,
+                    'circle-opacity': 0.85,
                 },
             });
 
@@ -410,9 +476,6 @@ export default function AirshedNetworkMap() {
             };
             raf.current = requestAnimationFrame(tick);
 
-            // ── Layer 0: WeatherLab stepped cloud raster ─────────────────────
-            addWeatherLabLayer(instance);
-
             setMapReady(true);
         });
 
@@ -454,17 +517,29 @@ export default function AirshedNetworkMap() {
         return () => { instance.off('load', onLoad); };
     }, [geo]);
 
-    // ── Update WeatherLab cloud field whenever step or metric changes ─────────
+    // ── Hook reactivity to the timeline & metric (dynamic plume updates) ─────
+    const data = payload;
+
     useEffect(() => {
-        const instance = map.current;
-        if (!instance || !step) return;
-        const doUpdate = () => {
-            if (!instance.getSource('weatherlab-raster')) return;
-            updateWeatherLabImage(instance, step.nodes, selectedMetric);
+        if (!map.current || !data?.time_steps) return;
+
+        const currentStep = data.time_steps[selectedSubStep];
+        if (!currentStep) return;
+
+        const updatePlumes = () => {
+            const source = map.current?.getSource('dynamic-plumes-source') as maplibregl.GeoJSONSource | undefined;
+            if (source) {
+                // Dynamically update the plume data on every timeline tick!
+                source.setData(getDynamicPlumeGeoJSON(currentStep, selectedMetric));
+            }
         };
-        if (instance.isStyleLoaded()) { doUpdate(); return; }
-        instance.once('load', doUpdate);
-    }, [step, selectedMetric]);
+
+        if (map.current.isStyleLoaded() && map.current.getSource('dynamic-plumes-source')) {
+            updatePlumes();
+        } else {
+            map.current.once('load', updatePlumes);
+        }
+    }, [selectedSubStep, selectedMetric, data]);
 
     // ── Layer visibility ──────────────────────────────────────────────────────
     useEffect(() => {
@@ -473,7 +548,9 @@ export default function AirshedNetworkMap() {
         const vis = (id: string, on: boolean) => {
             if (instance.getLayer(id)) instance.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
         };
-        vis('atmospheric-city-halos', layerVisibility.plumes);
+        const plumesVisible = layerVisibility.plumes && (layerVisibility.cloudField ?? true);
+        vis('dynamic-plumes-layer', plumesVisible);
+        vis('plume-ambient-layer', plumesVisible);
         vis('edges-glow', layerVisibility.edges);
         vis('edges-core', layerVisibility.edges);
         vis('edge-badge-labels', layerVisibility.edges);
@@ -483,7 +560,6 @@ export default function AirshedNetworkMap() {
         vis('pin-rings', layerVisibility.pins);
         vis('pin-cores', layerVisibility.pins);
         vis('pin-labels', layerVisibility.pins);
-        setWeatherLabVisibility(instance, layerVisibility.cloudField ?? true);
     }, [layerVisibility]);
 
     // ── Selected city marker ──────────────────────────────────────────────────
@@ -495,11 +571,14 @@ export default function AirshedNetworkMap() {
         const node = step.nodes[selectedCityId];
         if (!node) return;
 
+        const val = Math.round(metricValue(node, selectedMetric));
+        const sev = getSeverityColor(val, selectedMetric);
+
         const el = document.createElement('div');
         el.style.cssText = `
       width: 24px; height: 24px; border-radius: 999px;
-      border: 2px solid #38bdf8;
-      box-shadow: 0 0 16px #38bdf880;
+      border: 2px solid ${sev.border};
+      box-shadow: 0 0 16px ${sev.border}80;
       background: transparent;
       pointer-events: none;
     `;
@@ -508,7 +587,7 @@ export default function AirshedNetworkMap() {
                 .setLngLat([node.longitude, node.latitude])
                 .addTo(instance),
         ];
-    }, [selectedCityId, step]);
+    }, [selectedCityId, step, selectedMetric]);
 
     return (
         <div className="absolute inset-0 w-full h-full" style={{ position: 'relative' }}>

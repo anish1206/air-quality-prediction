@@ -1,3 +1,5 @@
+.agents
+.archify
 
 # Large model files
 data/aqi_forecast_model.pkl
