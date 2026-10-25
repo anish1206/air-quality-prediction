@@ -4,7 +4,9 @@ Fetches live weather and air quality data for 20 Indian cities,
 evaluates the causal graph, and exports cascade predictions to JSON.
 """
 
+import sys
 import json
+import hashlib
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -19,11 +21,31 @@ warnings.filterwarnings('ignore')
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+try:
+    from scripts.tz import IST
+except ImportError:
+    from tz import IST
+
 CITIES_METADATA_PATH = PROJECT_ROOT / "data" / "raw" / "cities_metadata.json"
 CLUSTER_METADATA_PATH = PROJECT_ROOT / "data" / "processed" / "airshed_clusters.json"
 CAUSAL_GRAPH_PATH = PROJECT_ROOT / "data" / "models" / "causal_graph.json"
-CASCADE_MODEL_PATH = PROJECT_ROOT / "data" / "models" / "cascade_predictor.pkl"
+CASCADE_MODEL_PATH = PROJECT_ROOT / "data" / "models" / "cascade_predictor_v4.pkl"
+CLIMATOLOGY_PATH = PROJECT_ROOT / "data" / "models" / "pm25_climatology.json"
+EDGE_DELTAS_PATH = PROJECT_ROOT / "data" / "models" / "edge_severity_deltas.json"
 OUTPUT_PATH = PROJECT_ROOT / "web_app" / "public" / "airshed_data.json"
+
+PIPELINE_VERSION = "2.0.0"
+STALENESS_MAX_H = 30
+
+def _get_model_version(model_path):
+    """Compute a short hash of the model file for version tracking."""
+    if model_path.exists():
+        h = hashlib.md5(model_path.read_bytes()).hexdigest()[:8]
+        return f"v4-{h}"
+    return "heuristic"
 
 # API Endpoints
 WEATHER_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
@@ -44,34 +66,56 @@ REQUEST_TIMEOUT = 15  # seconds per HTTP call — prevents indefinite hangs
 
 
 def load_artifacts():
-    """Load all required artifacts."""
+    """Load all required artifacts (model, climatology, edge deltas, graph)."""
     print("Loading artifacts...")
-    
+
     with open(CITIES_METADATA_PATH, 'r') as f:
         cities_metadata = json.load(f)
-    
+
     with open(CLUSTER_METADATA_PATH, 'r') as f:
         cluster_metadata = json.load(f)
-    
+
     with open(CAUSAL_GRAPH_PATH, 'r') as f:
         causal_graph = json.load(f)
-    
-    # Load cascade model if available
+
+    # Load cascade model directly (structure: classifier, imputer, feature_cols, etc.)
     cascade_model = None
     if CASCADE_MODEL_PATH.exists():
         try:
             cascade_model = joblib.load(CASCADE_MODEL_PATH)
-            print("Loaded cascade predictor model")
+            n_features = len(cascade_model.get('feature_cols', []))
+            threshold  = cascade_model.get('optimal_decision_threshold', 0.5)
+            print(f"Loaded cascade predictor ({n_features} features, threshold={threshold:.3f})")
         except Exception as e:
-            print(f"Could not load cascade model: {e}")
+            print(f"WARNING: Could not load cascade model: {e} — falling back to heuristic")
     else:
-        print("Cascade model not found - using heuristic predictions")
-    
-    print(f"Loaded {len(cities_metadata)} cities")
-    print(f"Loaded {len(cluster_metadata)} clusters")
-    print(f"Loaded {len(causal_graph['edges'])} causal edges")
-    
-    return cities_metadata, cluster_metadata, causal_graph, cascade_model
+        print(f"WARNING: cascade_predictor_v4.pkl not found at {CASCADE_MODEL_PATH} "
+              f"— using heuristic confidence")
+
+    # Load seasonal PM2.5 climatology for anomaly z-scores
+    climatology = None
+    if CLIMATOLOGY_PATH.exists():
+        with open(CLIMATOLOGY_PATH, 'r') as f:
+            climatology = json.load(f)
+        print(f"Loaded PM2.5 climatology for {len(climatology.get('seasonal', {}))} cities")
+    else:
+        print(f"WARNING: pm25_climatology.json not found — anomaly z-scores will use "
+              f"live-window stats (not comparable to historical baseline)")
+
+    # Load per-edge historical severity deltas
+    edge_deltas = None
+    if EDGE_DELTAS_PATH.exists():
+        with open(EDGE_DELTAS_PATH, 'r') as f:
+            edge_deltas = json.load(f)
+        print(f"Loaded severity deltas for {len(edge_deltas)} edges")
+    else:
+        print("WARNING: edge_severity_deltas.json not found — using flat 30% transfer heuristic")
+
+    print(f"Loaded {len(cities_metadata)} cities, "
+          f"{len(cluster_metadata)} clusters, "
+          f"{len(causal_graph['edges'])} causal edges")
+
+    return cities_metadata, cluster_metadata, causal_graph, cascade_model, climatology, edge_deltas
 
 
 def fetch_live_data(city):
@@ -199,204 +243,305 @@ def compute_wind_vectors(df):
     return df
 
 
-def compute_anomaly_zscore(df, historical_mean, historical_std):
-    """Compute PM2.5 anomaly Z-score."""
+def compute_anomaly_zscore(df, fallback_mean, fallback_std,
+                           city_id=None, climatology=None):
+    """
+    Compute PM2.5 anomaly Z-score against seasonal climatology.
+
+    Uses per-city, per-month, per-hour baseline when climatology artifact is
+    available; falls back to the provided live-window stats otherwise.
+    """
     if df.empty or 'pm2_5' not in df.columns:
         return df
-    
+
     df = df.copy()
-    df["pm2_5_zscore"] = (df["pm2_5"] - historical_mean) / (historical_std + 1e-8)
+    seasonal = climatology.get("seasonal", {}).get(city_id, {}) if climatology and city_id else {}
+    overall  = climatology.get("overall",  {}).get(city_id, {}) if climatology and city_id else {}
+
+    zscores = []
+    for _, row in df.iterrows():
+        t   = row.get("time_4h") or row.get("time")
+        key = f"{t.month}_{t.hour}" if hasattr(t, 'month') else ""
+        if key and key in seasonal:
+            mu    = seasonal[key]["mean"]
+            sigma = max(seasonal[key]["std"], 1e-8)
+        elif overall:
+            mu    = overall.get("mean", fallback_mean)
+            sigma = max(overall.get("std",  fallback_std), 1e-8)
+        else:
+            mu, sigma = fallback_mean, max(fallback_std, 1e-8)
+        zscores.append((row["pm2_5"] - mu) / sigma)
+
+    df["pm2_5_zscore"] = zscores
     return df
 
 
 def build_42_timesteps(cities_data):
     """
-    Build 42 discrete time steps (7 days × 6 slots).
-    Returns list of datetime objects.
+    Build 42 discrete time steps (7 days × 6 slots) aligned to IST.
+
+    Uses datetime.now(tz=IST) so slot boundaries are correct on both local
+    machines and UTC GitHub Actions runners.
     """
-    # Start from current time, round to nearest 4-hour slot
-    now = datetime.now()
+    # Now in IST — correct on both local and GitHub Actions (which runs UTC)
+    now = datetime.now(tz=IST)
     current_hour = now.hour
-    
+
     # Find nearest 4-hour slot
-    slot_idx = min(range(len(TIME_SLOTS)), key=lambda i: abs(TIME_SLOTS[i] - current_hour))
+    slot_idx   = min(range(len(TIME_SLOTS)), key=lambda i: abs(TIME_SLOTS[i] - current_hour))
     target_hour = TIME_SLOTS[slot_idx]
-    
-    # Round to target hour
-    start_time = now.replace(hour=target_hour, minute=0, second=0, microsecond=0)
-    
+
+    # Strip tzinfo for arithmetic (all timestamps stay implicitly IST throughout)
+    start_time = now.replace(hour=target_hour, minute=0, second=0, microsecond=0, tzinfo=None)
+
     # Generate 42 time steps (3 days back, 4 days forward)
     timesteps = []
     for day_offset in range(-PAST_DAYS, FORECAST_DAYS):
         for hour in TIME_SLOTS:
             timestep = start_time + timedelta(days=day_offset, hours=hour - target_hour)
             timesteps.append(timestep)
-    
+
     # Sort and deduplicate
     timesteps = sorted(list(set(timesteps)))[:42]
-    
+
     return timesteps
 
 
-def evaluate_cascade_triggers(cities_data, cities_metadata, causal_graph, timesteps, cascade_model=None):
+def evaluate_cascade_triggers(cities_data, cities_metadata, causal_graph, timesteps,
+                               cascade_model=None, edge_deltas=None):
     """
     Evaluate causal graph and spawn cascade pulses for each time step.
+
+    cascade_model : v4 artifact dict returned by load_artifact(), or None
+    edge_deltas   : per-edge historical delta dict, or None
     """
     print("Evaluating cascade triggers...")
-    
+
     edges = causal_graph['edges']
-    city_lookup = {city['id']: city for city in cities_metadata}
-    
+
+    # Build an inline predict function compatible with the actual pkl structure
+    _predict_cascade = None
+    if cascade_model is not None:
+        try:
+            _clf        = cascade_model['classifier']
+            _imputer    = cascade_model.get('imputer')
+            _feat_cols  = cascade_model['feature_cols']
+            _threshold  = cascade_model.get('optimal_decision_threshold', 0.5)
+
+            def _predict_cascade(src_node, tgt_node, edge, t):
+                """Inline predict using the actual pkl structure."""
+                # Build feature row matching feature_cols order
+                row = {}
+                for col in _feat_cols:
+                    row[col] = float('nan')
+
+                row['source_pm25_t']         = src_node.get('pm2_5') or float('nan')
+                row['source_pm25_zscore_t']  = src_node.get('anomaly_z_score') or float('nan')
+                row['source_wind_speed_t']   = src_node.get('wind_speed') or float('nan')
+                row['source_wind_u_t']       = src_node.get('wind_u') or float('nan')
+                row['source_wind_v_t']       = src_node.get('wind_v') or float('nan')
+                row['source_humidity_t']     = src_node.get('humidity') or float('nan')
+                row['source_temp_t']         = src_node.get('temp') or float('nan')
+                row['target_pm25_t']         = tgt_node.get('pm2_5') or float('nan')
+                row['target_pm25_zscore_t']  = tgt_node.get('anomaly_z_score') or float('nan')
+                row['target_wind_speed_t']   = tgt_node.get('wind_speed') or float('nan')
+                row['target_humidity_t']     = tgt_node.get('humidity') or float('nan')
+                row['target_temp_t']         = tgt_node.get('temp') or float('nan')
+                row['correlation_strength']  = edge.get('correlation_coefficient', 0.5)
+                row['delay_hours']           = edge.get('delay_hours', 0)
+                row['bearing_deg']           = edge.get('corridor_bearing_deg', 0.0)
+                row['pressure_gradient_t']   = (
+                    (src_node.get('temp') or 0) - (tgt_node.get('temp') or 0)
+                )
+                row['temp_gradient_t']       = row['pressure_gradient_t']
+                ts = t if isinstance(t, pd.Timestamp) else pd.Timestamp(t)
+                row['hour_sin']  = float(pd.Series([ts]).dt.hour.map(lambda h: __import__('math').sin(2*__import__('math').pi*h/24)).iloc[0])
+                row['hour_cos']  = float(pd.Series([ts]).dt.hour.map(lambda h: __import__('math').cos(2*__import__('math').pi*h/24)).iloc[0])
+                row['month_sin'] = float(pd.Series([ts]).dt.month.map(lambda m: __import__('math').sin(2*__import__('math').pi*m/12)).iloc[0])
+                row['month_cos'] = float(pd.Series([ts]).dt.month.map(lambda m: __import__('math').cos(2*__import__('math').pi*m/12)).iloc[0])
+
+                import numpy as _np
+                X = _np.array([[row.get(c, float('nan')) for c in _feat_cols]])
+                if _imputer is not None:
+                    X = _imputer.transform(X)
+                prob = float(_clf.predict_proba(X)[0, 1])
+                return prob
+        except Exception as e:
+            print(f"WARNING: Could not build cascade predict function: {e}")
+
     # Build time step data
     time_steps_data = []
-    
+
     for step_idx, timestep in enumerate(timesteps):
         step_data = {
             "step_index": step_idx,
             "offset_days": (timestep - timesteps[0]).days,
             "hour_ist": f"{timestep.hour:02d}:00",
             "date_formatted": timestep.strftime("%b %d, %Y"),
-            "is_observed": step_idx < (PAST_DAYS * 6),  # First 18 steps are observed
+            # is_observed is valid because timesteps are IST-aligned (see build_42_timesteps)
+            "is_observed": step_idx < (PAST_DAYS * 6),
             "nodes": {},
             "active_cascade_pulses": []
         }
-        
+
         # Populate node data for each city
         for city in cities_metadata:
             city_id = city['id']
             city_df = cities_data.get(city_id)
-            
-            # Find data closest to this timestep
+
+            # time column is named 'time_4h' after the rename in _fetch()
+            time_col = 'time_4h' if (city_df is not None and 'time_4h' in city_df.columns) else 'time'
+
             if city_df is not None and not city_df.empty:
-                closest_idx = (city_df['time'] - timestep).abs().idxmin()
+                closest_idx = (city_df[time_col] - timestep).abs().idxmin()
                 row = city_df.loc[closest_idx]
-                
-                # Compute hazard level
-                pm25 = row.get('pm2_5', 0)
-                if pm25 < 50:
-                    hazard_level = "Low"
-                elif pm25 < 100:
-                    hazard_level = "Moderate"
-                elif pm25 < 150:
-                    hazard_level = "High"
+
+                pm25 = row.get('pm2_5')
+                if pm25 is None or (hasattr(pm25, '__float__') and float(pm25) != float(pm25)):
+                    # NaN check
+                    pm25 = None
+
+                if pm25 is None:
+                    hazard_level      = "Unknown"
+                    is_trigger_active = False
+                elif float(pm25) < 50:
+                    hazard_level      = "Low"
+                    is_trigger_active = False
+                elif float(pm25) < 100:
+                    hazard_level      = "Moderate"
+                    is_trigger_active = False
+                elif float(pm25) < 150:
+                    hazard_level      = "High"
+                    is_trigger_active = True
                 else:
-                    hazard_level = "Severe"
-                
-                # Check if trigger is active
-                is_trigger_active = bool(pm25 > PM25_THRESHOLD)
-                
+                    hazard_level      = "Severe"
+                    is_trigger_active = True
+
+                def _safe(col):
+                    v = row.get(col)
+                    return float(v) if v is not None and float(v) == float(v) else None
+
                 step_data["nodes"][city_id] = {
-                    "city_name": city['name'],
-                    "cluster_id": 0,  # Will be filled later
-                    "latitude": float(city['lat']),
-                    "longitude": float(city['lon']),
-                    "us_aqi": float(row.get('us_aqi', 0)),
-                    "pm2_5": float(pm25),
-                    "pm10": float(row.get('pm10', 0)),
-                    "no2": float(row.get('nitrogen_dioxide', 0)),
-                    "temp": float(row.get('temp', 0)),
-                    "humidity": float(row.get('humidity', 0)),
-                    "wind_speed": float(row.get('wind_speed', 0)),
-                    "wind_dir": float(row.get('wind_direction', 0)),
-                    "wind_u": float(row.get('wind_u', 0)),
-                    "wind_v": float(row.get('wind_v', 0)),
-                    "anomaly_z_score": float(row.get('pm2_5_zscore', 0)),
-                    "hazard_level": hazard_level,
-                    "is_trigger_active": is_trigger_active
+                    "city_name":        city['name'],
+                    "cluster_id":       0,  # filled later in export_payload
+                    "latitude":         float(city['lat']),
+                    "longitude":        float(city['lon']),
+                    "us_aqi":           _safe('us_aqi'),
+                    "pm2_5":            float(pm25) if pm25 is not None else None,
+                    "pm10":             _safe('pm10'),
+                    "no2":              _safe('nitrogen_dioxide'),
+                    "temp":             _safe('temp'),
+                    "humidity":         _safe('humidity'),
+                    "wind_speed":       _safe('wind_speed'),
+                    "wind_dir":         _safe('wind_direction'),
+                    "wind_u":           _safe('wind_u'),
+                    "wind_v":           _safe('wind_v'),
+                    "anomaly_z_score":  _safe('pm2_5_zscore'),
+                    "hazard_level":     hazard_level,
+                    "is_trigger_active": is_trigger_active,
+                    "data_available":   True
                 }
             else:
-                # Fallback if no data
+                # No data for this city at this timestep — emit nulls, NOT zeros
                 step_data["nodes"][city_id] = {
-                    "city_name": city['name'],
-                    "cluster_id": 0,
-                    "latitude": float(city['lat']),
-                    "longitude": float(city['lon']),
-                    "us_aqi": 0.0,
-                    "pm2_5": 0.0,
-                    "pm10": 0.0,
-                    "no2": 0.0,
-                    "temp": 0.0,
-                    "humidity": 0.0,
-                    "wind_speed": 0.0,
-                    "wind_dir": 0.0,
-                    "wind_u": 0.0,
-                    "wind_v": 0.0,
-                    "anomaly_z_score": 0.0,
-                    "hazard_level": "Low",
-                    "is_trigger_active": False
+                    "city_name":        city['name'],
+                    "cluster_id":       0,
+                    "latitude":         float(city['lat']),
+                    "longitude":        float(city['lon']),
+                    "us_aqi":           None,
+                    "pm2_5":            None,
+                    "pm10":             None,
+                    "no2":              None,
+                    "temp":             None,
+                    "humidity":         None,
+                    "wind_speed":       None,
+                    "wind_dir":         None,
+                    "wind_u":           None,
+                    "wind_v":           None,
+                    "anomaly_z_score":  None,
+                    "hazard_level":     "Unknown",
+                    "is_trigger_active": False,
+                    "data_available":   False
                 }
-        
+
         # Evaluate cascade pulses
         for edge in edges:
-            source = edge['source_node']
-            target = edge['target_node']
+            source      = edge['source_node']
+            target      = edge['target_node']
             delay_hours = edge['delay_hours']
-            
+
             source_node = step_data["nodes"].get(source)
             target_node = step_data["nodes"].get(target)
-            
-            if source_node and target_node:
-                # Check if source is triggering
-                if source_node['is_trigger_active']:
-                    # Calculate progress based on delay
-                    # Find the time step when this pulse was triggered
-                    trigger_step_idx = max(0, step_idx - (delay_hours // 4))
-                    
-                    # Calculate progress ratio
-                    total_steps = delay_hours // 4
-                    elapsed_steps = step_idx - trigger_step_idx
-                    progress_ratio = min(1.0, max(0.0, elapsed_steps / total_steps)) if total_steps > 0 else 1.0
-                    
-                    # Calculate arrival time
-                    arrival_timestep = timesteps[min(len(timesteps) - 1, step_idx + (delay_hours // 4))]
-                    arrival_ist = arrival_timestep.strftime("%Y-%m-%d %H:%M:%S")
-                    
-                    # Use model prediction or heuristic confidence
-                    if cascade_model:
-                        confidence_pct = 75.0  # Placeholder - would use actual model
-                    else:
-                        # Heuristic: based on correlation strength
-                        confidence_pct = min(95.0, edge['correlation_coefficient'] * 100)
-                    
-                    # Calculate severity delta
-                    severity_delta_pm25 = source_node['pm2_5'] * 0.3  # Heuristic: 30% transfer
-                    
-                    step_data["active_cascade_pulses"].append({
-                        "pulse_id": f"{source}_{target}_{step_idx}",
-                        "source_node": source,
-                        "target_node": target,
-                        "progress_ratio": round(progress_ratio, 2),
-                        "estimated_arrival_ist": arrival_ist,
-                        "confidence_pct": round(confidence_pct, 1),
-                        "severity_delta_pm25": round(severity_delta_pm25, 1)
-                    })
-        
+
+            if source_node and target_node and source_node.get('is_trigger_active'):
+                # Progress along the propagation corridor
+                total_steps   = max(1, delay_hours // 4)
+                trigger_step  = max(0, step_idx - total_steps)
+                elapsed_steps = step_idx - trigger_step
+                progress_ratio = min(1.0, max(0.0, elapsed_steps / total_steps))
+
+                # Arrival time
+                arrival_step = timesteps[min(len(timesteps) - 1, step_idx + total_steps)]
+                arrival_ist  = arrival_step.strftime("%Y-%m-%d %H:%M:%S")
+
+                # Confidence: real model when available, else correlation heuristic
+                confidence_pct = min(95.0, edge['correlation_coefficient'] * 100)  # fallback
+                if _predict_cascade is not None and source_node.get('pm2_5') is not None:
+                    try:
+                        prob = _predict_cascade(
+                            source_node, target_node, edge, pd.Timestamp(timestep)
+                        )
+                        confidence_pct = prob * 100
+                    except Exception:
+                        pass  # keep heuristic fallback
+
+                # Severity delta: per-edge historical mean, else flat 30%
+                src_pm25 = source_node.get('pm2_5') or 0.0
+                edge_key = f"{source}__{target}"
+                if edge_deltas and edge_key in edge_deltas:
+                    severity_delta_pm25 = edge_deltas[edge_key].get("mean_delta", src_pm25 * 0.3)
+                else:
+                    severity_delta_pm25 = src_pm25 * 0.3
+
+                step_data["active_cascade_pulses"].append({
+                    "pulse_id":               f"{source}_{target}_{step_idx}",
+                    "source_node":            source,
+                    "target_node":            target,
+                    "progress_ratio":         round(progress_ratio, 2),
+                    "estimated_arrival_ist":  arrival_ist,
+                    "confidence_pct":         round(confidence_pct, 1),
+                    "severity_delta_pm25":    round(severity_delta_pm25, 1)
+                })
+
         time_steps_data.append(step_data)
-    
+
     return time_steps_data
 
 
 def export_payload(timesteps_data, cluster_metadata, causal_graph):
     """Export structured JSON payload."""
     print("Exporting JSON payload...")
-    
-    # Add cluster IDs to nodes
+
+    # Fill cluster IDs into each node
     cluster_id_map = {}
     for cluster in cluster_metadata:
         for city_id in cluster['member_cities']:
             cluster_id_map[city_id] = int(cluster['cluster_id'])
-    
+
     for step_data in timesteps_data:
         for city_id, node_data in step_data["nodes"].items():
             node_data["cluster_id"] = cluster_id_map.get(city_id, 0)
-    
-    # Build final payload
+
+    # Build final payload — generated_at is IST-aware
     payload = {
-        "generated_at": datetime.now().isoformat() + "Z",
+        "generated_at":           datetime.now(tz=IST).isoformat(),
+        "model_version":          _get_model_version(CASCADE_MODEL_PATH),
+        "pipeline_version":       PIPELINE_VERSION,
+        "staleness_max_hours":    STALENESS_MAX_H,
         "forecast_horizon_hours": 72,
-        "time_steps": timesteps_data,
-        "clusters": cluster_metadata,
-        "causal_edges": causal_graph['edges']
+        "time_steps":             timesteps_data,
+        "clusters":               cluster_metadata,
+        "causal_edges":           causal_graph['edges']
     }
     
     # Ensure all numeric values are JSON serializable
@@ -432,10 +577,24 @@ def main():
     print("=" * 80)
     print("NAICEWS Operational Airshed Inference Pipeline")
     print("=" * 80)
-    
+
+    # --- Staleness guard: skip if existing payload is still fresh ---
+    if OUTPUT_PATH.exists():
+        try:
+            with open(OUTPUT_PATH) as _f:
+                _existing = json.load(_f)
+            _existing_time = pd.Timestamp(_existing.get("generated_at", "2000-01-01"))
+            _age_h = (pd.Timestamp.now(tz="Asia/Kolkata") - _existing_time).total_seconds() / 3600
+            if _age_h < 6:
+                print(f"⚠️  Existing payload is {_age_h:.1f}h old — skipping regeneration")
+                return
+        except Exception:
+            pass  # if parsing fails, regenerate
+
     # Load artifacts
-    cities_metadata, cluster_metadata, causal_graph, cascade_model = load_artifacts()
-    
+    cities_metadata, cluster_metadata, causal_graph, cascade_model, climatology, edge_deltas = \
+        load_artifacts()
+
     # Fetch live data for all cities IN PARALLEL (8 threads — respects open-meteo rate limits)
     print("\nFetching live data for all cities (parallel)...")
     cities_data = {}
@@ -446,9 +605,24 @@ def main():
         if not city_df.empty:
             city_df = resample_to_4h(city_df)
             city_df = compute_wind_vectors(city_df)
-            pm25_mean = city_df['pm2_5'].mean() if 'pm2_5' in city_df.columns else 50
-            pm25_std  = city_df['pm2_5'].std()  if 'pm2_5' in city_df.columns else 20
-            city_df = compute_anomaly_zscore(city_df, pm25_mean, pm25_std)
+
+            # Rename 'time' → 'time_4h' so cascade_inference feature builder finds it
+            if 'time' in city_df.columns and 'time_4h' not in city_df.columns:
+                city_df = city_df.rename(columns={"time": "time_4h"})
+
+            # Approximate inversion_proxy from temp and humidity
+            # (parquet uses temp - dew_point; open-meteo approx: dew_point ≈ temp - (100 - rh)/5)
+            if 'inversion_proxy' not in city_df.columns and 'temp' in city_df.columns:
+                city_df["inversion_proxy"] = (100 - city_df["humidity"]) / 5.0
+
+            # Anomaly z-score against seasonal climatology (not the live window)
+            overall_fb  = climatology["overall"].get(city['id'], {}) if climatology else {}
+            pm25_mean   = overall_fb.get("mean", city_df['pm2_5'].mean() if 'pm2_5' in city_df.columns else 50)
+            pm25_std    = overall_fb.get("std",  city_df['pm2_5'].std()  if 'pm2_5' in city_df.columns else 20)
+            city_df = compute_anomaly_zscore(
+                city_df, pm25_mean, pm25_std,
+                city_id=city['id'], climatology=climatology
+            )
         return city['id'], city_df
 
     with ThreadPoolExecutor(max_workers=8) as pool:
@@ -456,20 +630,23 @@ def main():
         for future in as_completed(futures):
             city_id, city_df = future.result()
             cities_data[city_id] = city_df
-    
+
     # Build 42 time steps
     print("\nBuilding 42 time steps...")
     timesteps = build_42_timesteps(cities_data)
-    print(f"  Time range: {timesteps[0]} to {timesteps[-1]}")
-    
+    print(f"  Time range (IST): {timesteps[0]} to {timesteps[-1]}")
+
     # Evaluate cascade triggers
-    timesteps_data = evaluate_cascade_triggers(cities_data, cities_metadata, causal_graph, timesteps, cascade_model)
-    
+    timesteps_data = evaluate_cascade_triggers(
+        cities_data, cities_metadata, causal_graph, timesteps,
+        cascade_model=cascade_model, edge_deltas=edge_deltas
+    )
+
     # Export payload
     export_payload(timesteps_data, cluster_metadata, causal_graph)
-    
+
     print("\n" + "=" * 80)
-    print("✅ Airshed pipeline completed successfully!")
+    print("[OK] Airshed pipeline completed successfully!")
     print("=" * 80)
 
 

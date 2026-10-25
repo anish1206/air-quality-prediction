@@ -1,0 +1,1 @@
+"""NAICEWS scripts package."""

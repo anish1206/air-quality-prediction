@@ -7,18 +7,30 @@ to discover pollution transport pathways between cities.
 import json
 import numpy as np
 import pandas as pd
+import sys
 from pathlib import Path
-from statsmodels.tsa.stattools import grangercausalitytests
-from tqdm import tqdm
-import warnings
-warnings.filterwarnings('ignore')
 
 # Paths
 PROJECT_ROOT = Path(__file__).parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+try:
+    from scripts.tz import IST
+except ImportError:
+    from tz import IST
+
+from statsmodels.tsa.stattools import grangercausalitytests
+from statsmodels.stats.multitest import multipletests
+from scipy import stats
+from tqdm import tqdm
+import warnings
+warnings.filterwarnings('ignore')
 DATA_PATH = PROJECT_ROOT / "data" / "processed" / "master_multi_city_4h.parquet"
 CLUSTER_METADATA_PATH = PROJECT_ROOT / "data" / "processed" / "airshed_clusters.json"
 CITY_MAPPING_PATH = PROJECT_ROOT / "data" / "processed" / "city_cluster_mapping.json"
 CITIES_METADATA_PATH = PROJECT_ROOT / "data" / "raw" / "cities_metadata.json"
+CLIMATOLOGY_PATH = PROJECT_ROOT / "data" / "models" / "pm25_climatology.json"
 OUTPUT_PATH = PROJECT_ROOT / "data" / "models" / "causal_graph.json"
 
 # Parameters
@@ -63,7 +75,7 @@ def pivot_time_series(df):
     ts_matrix = df.pivot(index='time_4h', columns='city_id', values='pm2_5')
     
     # Fill any missing values with forward fill then backward fill
-    ts_matrix = ts_matrix.fillna(method='ffill').fillna(method='bfill')
+    ts_matrix = ts_matrix.ffill().bfill()
     
     # Ensure all cities are present
     city_ids = sorted(df['city_id'].unique())
@@ -71,6 +83,30 @@ def pivot_time_series(df):
     
     print(f"Pivoted matrix shape: {ts_matrix.shape}")
     return ts_matrix
+
+
+def deseasonalise(ts_matrix, climatology_path):
+    """
+    Remove seasonal mean from each city's PM2.5 series.
+    Uses the same climatology artifact as the anomaly z-scores.
+    """
+    print("De-seasonalising time-series using climatology baseline...")
+    with open(climatology_path, 'r') as f:
+        clim = json.load(f)
+
+    result = ts_matrix.copy()
+    months = result.index.month
+    hours = result.index.hour
+    keys = [f"{m}_{h}" for m, h in zip(months, hours)]
+
+    for city_id in result.columns:
+        seasonal = clim.get("seasonal", {}).get(city_id, {})
+        overall_mean = clim.get("overall", {}).get(city_id, {}).get("mean", 0.0)
+        means = np.array([seasonal.get(k, {}).get("mean", overall_mean) for k in keys])
+        result[city_id] = result[city_id].values - means
+
+    print(f"De-seasonalised matrix shape: {result.shape}")
+    return result
 
 
 def compute_cross_correlation(series_a, series_b, max_lag):
@@ -117,7 +153,24 @@ def compute_cross_correlation(series_a, series_b, max_lag):
     max_corr = correlations[max_idx]
     optimal_lag = lags[max_idx]
     
-    return max_corr, optimal_lag, correlations
+    # Calculate p-value at optimal lag
+    if optimal_lag < 0:
+        a_opt = series_a[-optimal_lag:]
+        b_opt = series_b[:len(a_opt)]
+    elif optimal_lag > 0:
+        a_opt = series_a[:-optimal_lag]
+        b_opt = series_b[optimal_lag:]
+    else:
+        a_opt = series_a
+        b_opt = series_b
+
+    if len(a_opt) > 10:
+        res = stats.pearsonr(a_opt, b_opt)
+        p_val = float(res.pvalue)
+    else:
+        p_val = 1.0
+
+    return max_corr, optimal_lag, p_val, correlations
 
 
 def run_granger_causality(series_a, series_b, max_lag=6):
@@ -235,10 +288,14 @@ def compute_causal_graph(ts_matrix, cities_metadata, city_cluster_mapping):
                 series_target = ts_matrix[target].values
                 
                 # Step 1: Cross-correlation analysis
-                max_corr, optimal_lag_idx, _ = compute_cross_correlation(
+                max_corr, optimal_lag_idx, p_val, _ = compute_cross_correlation(
                     series_source, series_target, LAG_RANGE
                 )
                 
+                # In a directed graph, source causes target at lag >= 0
+                if optimal_lag_idx < 0:
+                    continue
+
                 # Convert lag index to hours (4-hour steps)
                 delay_hours = optimal_lag_idx * 4
                 
@@ -254,25 +311,27 @@ def compute_causal_graph(ts_matrix, cities_metadata, city_cluster_mapping):
                     target_city['lat'], target_city['lon']
                 )
                 
-                # Step 3: Determine transmission type
-                if delay_hours <= 4:
-                    transmission_type = "Synoptic_Stagnation_Sync"
+                # Step 3: Determine transmission type (matches v4 audit renaming)
+                if delay_hours == 0:
+                    transmission_type = "Synoptic_Sync"         # NOT "cascade"
                 elif delay_hours <= 12:
-                    transmission_type = "Advective_Transport"
+                    transmission_type = "Advective_Cascade"      # true cascade
+                elif delay_hours <= 24:
+                    transmission_type = "Meso_Transport"
                 else:
-                    transmission_type = "Long-Range_Transport"
+                    transmission_type = "Long_Range_Transport"
                 
                 # Get cluster ID
                 cluster_id = city_cluster_mapping.get(source, -1)
                 
-                # Create edge (using correlation as proxy for causality)
+                # Create edge
                 edge = {
                     "source_node": source,
                     "target_node": target,
                     "cluster_id": int(cluster_id),
                     "correlation_coefficient": float(round(abs(max_corr), 4)),
                     "delay_hours": int(delay_hours),
-                    "granger_p_value": None,  # Not using Granger in simplified version
+                    "granger_p_value": float(round(p_val, 6)),
                     "corridor_bearing_deg": float(round(bearing, 1)),
                     "transmission_type": transmission_type
                 }
@@ -283,6 +342,13 @@ def compute_causal_graph(ts_matrix, cities_metadata, city_cluster_mapping):
     print(f"  Total pairs analyzed: {total_pairs}")
     print(f"  Passed correlation threshold: {len(edges)}")
     
+    # Benjamini-Hochberg FDR correction at alpha=0.05
+    all_p_values = [e['granger_p_value'] for e in edges]
+    if all_p_values:
+        reject, corrected_pvals, _, _ = multipletests(all_p_values, alpha=0.05, method='fdr_bh')
+        edges = [e for e, r in zip(edges, reject) if r]
+        print(f"  Passed BH FDR correction (alpha=0.05): {len(edges)}")
+
     # Sort edges by correlation and keep top MAX_EDGES
     edges = sorted(edges, key=lambda x: x['correlation_coefficient'], reverse=True)
     edges = edges[:MAX_EDGES]
@@ -295,11 +361,11 @@ def save_causal_graph(edges):
     """Save causal graph to JSON."""
     print("\nSaving causal graph...")
     
-    # Create graph metadata
+    # Create graph metadata with IST timezone
     graph_metadata = {
         "node_count": 20,
         "edge_count": len(edges),
-        "generated_at": pd.Timestamp.now().isoformat() + "Z"
+        "generated_at": pd.Timestamp.now(tz=IST).isoformat()
     }
     
     # Create full payload
@@ -368,6 +434,9 @@ def main():
     # Pivot time series
     ts_matrix = pivot_time_series(df)
     
+    # De-seasonalise time series using climatology baseline
+    ts_matrix = deseasonalise(ts_matrix, CLIMATOLOGY_PATH)
+
     # Compute causal graph
     edges = compute_causal_graph(ts_matrix, cities_metadata, city_cluster_mapping)
     
@@ -378,7 +447,7 @@ def main():
     print_edge_summary(edges)
     
     print("\n" + "=" * 80)
-    print("✅ Causal graph computation completed successfully!")
+    print("[OK] Causal graph computation completed successfully!")
     print("=" * 80)
 
 

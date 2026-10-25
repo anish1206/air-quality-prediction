@@ -30,8 +30,8 @@ export const CLUSTER_FILTERS: { id: number | null; label: string; sub: string }[
 ];
 
 export const CLUSTER_DISPLAY: Record<number, { short: string; color: string }> = {
-  0: { short: 'IGP Corridor', color: '#f43f5e' },
-  1: { short: 'Deccan Plateau', color: '#f59e0b' },
-  2: { short: 'Central Inland', color: '#38bdf8' },
-  3: { short: 'Coastal Marine', color: '#34d399' },
+  0: { short: 'IGP Corridor', color: '#7f8c8d' },
+  1: { short: 'Deccan Plateau', color: '#d35400' },
+  2: { short: 'Central Inland', color: '#16a085' },
+  3: { short: 'Coastal Marine', color: '#1abc9c' },
 };

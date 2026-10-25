@@ -63,28 +63,24 @@ function distKm(lon1: number, lat1: number, lon2: number, lat2: number): number 
 }
 
 // Helper function to return severity color based purely on the active metric value
-export function getSeverityColor(val: number, metric: string): { bg: string; border: string; glow: string } {
+export function getSeverityColor(val: number, metric: string): { bg: string; border: string } {
     if (metric === 'chhi_score') {
         if (val > 75) {
-            // Critical Hazard -> Crimson Red
-            return { bg: 'rgba(225, 29, 72, 0.85)', border: '#e11d48', glow: 'rgba(225, 29, 72, 0.45)' };
+            return { bg: 'rgba(192, 0, 0, 0.85)', border: '#c00000' };
         } else if (val > 50) {
-            // High Hazard -> Flame Orange
-            return { bg: 'rgba(249, 115, 22, 0.80)', border: '#f97316', glow: 'rgba(249, 115, 22, 0.40)' };
+            return { bg: 'rgba(230, 126, 34, 0.80)', border: '#e67e22' };
         } else if (val > 25) {
-            // Moderate -> Amber Yellow
-            return { bg: 'rgba(234, 179, 8, 0.70)', border: '#eab308', glow: 'rgba(234, 179, 8, 0.35)' };
+            return { bg: 'rgba(243, 156, 18, 0.70)', border: '#f39c12' };
         } else {
-            // Low Risk (<= 25) -> MINT GREEN!
-            return { bg: 'rgba(34, 197, 94, 0.75)', border: '#22c55e', glow: 'rgba(34, 197, 94, 0.35)' };
+            return { bg: 'rgba(39, 174, 96, 0.75)', border: '#27ae60' };
         }
     }
 
     // Fallback for US AQI / PM2.5 / NO2
-    if (val > 150) return { bg: 'rgba(225, 29, 72, 0.85)', border: '#e11d48', glow: 'rgba(225, 29, 72, 0.45)' };
-    if (val > 100) return { bg: 'rgba(249, 115, 22, 0.80)', border: '#f97316', glow: 'rgba(249, 115, 22, 0.40)' };
-    if (val > 50)  return { bg: 'rgba(234, 179, 8, 0.70)', border: '#eab308', glow: 'rgba(234, 179, 8, 0.35)' };
-    return { bg: 'rgba(34, 197, 94, 0.75)', border: '#22c55e', glow: 'rgba(34, 197, 94, 0.35)' };
+    if (val > 150) return { bg: 'rgba(192, 0, 0, 0.85)', border: '#c00000' };
+    if (val > 100) return { bg: 'rgba(230, 126, 34, 0.80)', border: '#e67e22' };
+    if (val > 50)  return { bg: 'rgba(243, 156, 18, 0.70)', border: '#f39c12' };
+    return { bg: 'rgba(39, 174, 96, 0.75)', border: '#27ae60' };
 }
 
 // Helper function to build dynamic GeoJSON for the ACTIVE time step
@@ -100,7 +96,7 @@ export function getDynamicPlumeGeoJSON(currentStep: AirshedTimeStep, selectedMet
         );
 
         // 2. Determine color and radius strictly based on this value
-        const { glow } = getSeverityColor(val, selectedMetric);
+        const { border } = getSeverityColor(val, selectedMetric);
         const plumeRadius = val > 75 ? 55 : (val > 50 ? 42 : (val > 25 ? 30 : 20));
 
         // 3. Shift coordinates downwind based on wind vectors
@@ -118,7 +114,7 @@ export function getDynamicPlumeGeoJSON(currentStep: AirshedTimeStep, selectedMet
             properties: {
                 cityId,
                 val,
-                plume_color: glow, // Use the dynamic risk glow color! NOT cluster.color_hex!
+                plume_color: border,
                 plume_radius: plumeRadius,
             },
         };
@@ -339,8 +335,7 @@ export default function AirshedNetworkMap() {
                 paint: {
                     'line-color': ['get', 'stroke'],
                     'line-width': 1.5,
-                    'line-opacity': 0.35,
-                    'line-blur': 4,
+                    'line-opacity': 0.25,
                 },
             });
 
@@ -357,8 +352,7 @@ export default function AirshedNetworkMap() {
                         4, ['get', 'plume_radius'],
                         8, ['*', ['get', 'plume_radius'], 2.5],
                     ],
-                    'circle-blur': 0.90,
-                    'circle-opacity': 0.85,
+                    'circle-opacity': 0.60,
                 },
             });
 
@@ -367,9 +361,8 @@ export default function AirshedNetworkMap() {
                 id: 'edges-glow', type: 'line', source: 'edges',
                 paint: {
                     'line-color': ['get', 'color'],
-                    'line-width': 3,
-                    'line-opacity': 0.12,
-                    'line-blur': 4,
+                    'line-width': 2,
+                    'line-opacity': 0.25,
                 },
             });
             instance.addLayer({
@@ -442,11 +435,10 @@ export default function AirshedNetworkMap() {
                 id: 'cascade-pulses', type: 'circle', source: 'pulses',
                 paint: {
                     'circle-radius': 4,
-                    'circle-color': '#38bdf8',
-                    'circle-blur': 0.3,
+                    'circle-color': '#e67e22',
                     'circle-stroke-width': 1,
-                    'circle-stroke-color': '#f97316',
-                    'circle-opacity': 0.90,
+                    'circle-stroke-color': '#c00000',
+                    'circle-opacity': 0.80,
                 },
             });
 
@@ -578,7 +570,7 @@ export default function AirshedNetworkMap() {
         el.style.cssText = `
       width: 24px; height: 24px; border-radius: 999px;
       border: 2px solid ${sev.border};
-      box-shadow: 0 0 16px ${sev.border}80;
+
       background: transparent;
       pointer-events: none;
     `;

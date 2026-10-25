@@ -31,10 +31,10 @@ export const normalizeHazard = (raw: string, chhi: number): HazardLevel => {
 };
 
 export const getHazardStyle = (score: number) => {
-  if (score <= 25) return { label: 'Low Risk', color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.25)' };
-  if (score <= 50) return { label: 'Moderate Risk', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.25)' };
-  if (score <= 75) return { label: 'High Hazard', color: '#f97316', bg: 'rgba(249,115,22,0.08)', border: 'rgba(249,115,22,0.25)' };
-  return { label: 'Critical Hazard', color: '#e11d48', bg: 'rgba(225,29,72,0.08)', border: 'rgba(225,29,72,0.25)' };
+  if (score <= 25) return { label: 'Low Risk', color: '#27ae60', bg: 'rgba(39,174,96,0.10)', border: 'rgba(39,174,96,0.30)' };
+  if (score <= 50) return { label: 'Moderate Risk', color: '#f39c12', bg: 'rgba(243,156,18,0.10)', border: 'rgba(243,156,18,0.30)' };
+  if (score <= 75) return { label: 'High Hazard', color: '#e67e22', bg: 'rgba(230,126,34,0.10)', border: 'rgba(230,126,34,0.30)' };
+  return { label: 'Critical Hazard', color: '#c00000', bg: 'rgba(192,0,0,0.10)', border: 'rgba(192,0,0,0.30)' };
 };
 
 export const clusterColor = (clusterId: number, payload?: AirshedNetworkPayload | null) => {
