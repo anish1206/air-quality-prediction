@@ -2,7 +2,7 @@
   "graph_metadata": {
     "node_count": 20,
     "edge_count": 50,
-    "generated_at": "2026-10-25T11:51:00.855417+05:30"
+    "generated_at": "2026-10-25T14:15:19.373562+05:30"
   },
   "edges": [
     {
@@ -11,7 +11,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.9041,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.1519082624095672e-16,
       "corridor_bearing_deg": 54.0,
       "transmission_type": "Synoptic_Sync"
     },
@@ -21,7 +21,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.9041,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 8.210950039023695e-11,
       "corridor_bearing_deg": 234.3,
       "transmission_type": "Synoptic_Sync"
     },
@@ -31,7 +31,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.7882,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 4.674197790242653e-79,
       "corridor_bearing_deg": 249.6,
       "transmission_type": "Synoptic_Sync"
     },
@@ -41,7 +41,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.7882,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.2281096067860613e-41,
       "corridor_bearing_deg": 69.0,
       "transmission_type": "Synoptic_Sync"
     },
@@ -51,7 +51,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.7522,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 3.3137561629189603e-96,
       "corridor_bearing_deg": 275.0,
       "transmission_type": "Synoptic_Sync"
     },
@@ -61,7 +61,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.7522,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.6803328976276196e-13,
       "corridor_bearing_deg": 94.5,
       "transmission_type": "Synoptic_Sync"
     },
@@ -71,7 +71,7 @@
       "cluster_id": 0,
       "correlation_coefficient": 0.6953,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 1.017291083389957e-21,
       "corridor_bearing_deg": 108.8,
       "transmission_type": "Synoptic_Sync"
     },
@@ -81,7 +81,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.6953,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 4.042975811353717e-30,
       "corridor_bearing_deg": 289.8,
       "transmission_type": "Synoptic_Sync"
     },
@@ -91,7 +91,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.6916,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 6.079023934792029e-29,
       "corridor_bearing_deg": 114.9,
       "transmission_type": "Synoptic_Sync"
     },
@@ -101,7 +101,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.6916,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 1.432528101704045e-27,
       "corridor_bearing_deg": 296.0,
       "transmission_type": "Synoptic_Sync"
     },
@@ -111,7 +111,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.6793,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.811542889892211e-37,
       "corridor_bearing_deg": 129.6,
       "transmission_type": "Synoptic_Sync"
     },
@@ -121,7 +121,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.6793,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 7.683555293417007e-35,
       "corridor_bearing_deg": 310.5,
       "transmission_type": "Synoptic_Sync"
     },
@@ -131,7 +131,7 @@
       "cluster_id": 0,
       "correlation_coefficient": 0.6788,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 3.8191284138705203e-28,
       "corridor_bearing_deg": 334.0,
       "transmission_type": "Synoptic_Sync"
     },
@@ -141,7 +141,7 @@
       "cluster_id": 0,
       "correlation_coefficient": 0.6788,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.9110554457240137e-31,
       "corridor_bearing_deg": 153.6,
       "transmission_type": "Synoptic_Sync"
     },
@@ -151,7 +151,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.6753,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.620428590131967e-54,
       "corridor_bearing_deg": 177.5,
       "transmission_type": "Synoptic_Sync"
     },
@@ -161,7 +161,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.6753,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 1.0764406046360705e-17,
       "corridor_bearing_deg": 357.6,
       "transmission_type": "Synoptic_Sync"
     },
@@ -171,7 +171,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.6538,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 1.4810070284767752e-68,
       "corridor_bearing_deg": 226.2,
       "transmission_type": "Synoptic_Sync"
     },
@@ -181,7 +181,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.6538,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.026023595648619e-09,
       "corridor_bearing_deg": 45.8,
       "transmission_type": "Synoptic_Sync"
     },
@@ -191,7 +191,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.6344,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 3.3246830929926235e-24,
       "corridor_bearing_deg": 262.4,
       "transmission_type": "Synoptic_Sync"
     },
@@ -201,7 +201,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.6344,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.2822236182616723e-29,
       "corridor_bearing_deg": 81.5,
       "transmission_type": "Synoptic_Sync"
     },
@@ -211,7 +211,7 @@
       "cluster_id": 0,
       "correlation_coefficient": 0.6175,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 1.3100613076135369e-18,
       "corridor_bearing_deg": 127.3,
       "transmission_type": "Synoptic_Sync"
     },
@@ -221,7 +221,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.6175,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 9.50160955988529e-26,
       "corridor_bearing_deg": 308.7,
       "transmission_type": "Synoptic_Sync"
     },
@@ -231,7 +231,7 @@
       "cluster_id": 0,
       "correlation_coefficient": 0.5756,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 5.505405604797101e-13,
       "corridor_bearing_deg": 117.2,
       "transmission_type": "Synoptic_Sync"
     },
@@ -241,7 +241,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.5756,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 3.810529013578703e-20,
       "corridor_bearing_deg": 299.0,
       "transmission_type": "Synoptic_Sync"
     },
@@ -251,7 +251,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.5704,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.0661874281825926e-30,
       "corridor_bearing_deg": 322.7,
       "transmission_type": "Synoptic_Sync"
     },
@@ -261,7 +261,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.5704,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.090483200378097e-46,
       "corridor_bearing_deg": 142.4,
       "transmission_type": "Synoptic_Sync"
     },
@@ -271,7 +271,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.5566,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 4.7530905944883065e-21,
       "corridor_bearing_deg": 107.5,
       "transmission_type": "Synoptic_Sync"
     },
@@ -281,7 +281,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.5566,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 6.966419882160179e-09,
       "corridor_bearing_deg": 289.3,
       "transmission_type": "Synoptic_Sync"
     },
@@ -291,7 +291,7 @@
       "cluster_id": 0,
       "correlation_coefficient": 0.5521,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 8.112470680350777e-14,
       "corridor_bearing_deg": 96.5,
       "transmission_type": "Synoptic_Sync"
     },
@@ -301,7 +301,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.5521,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 7.67860668712382e-20,
       "corridor_bearing_deg": 277.9,
       "transmission_type": "Synoptic_Sync"
     },
@@ -311,7 +311,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.5431,
       "delay_hours": 8,
-      "granger_p_value": 0.0,
+      "granger_p_value": 1.3362246502587171e-79,
       "corridor_bearing_deg": 358.8,
       "transmission_type": "Advective_Cascade"
     },
@@ -321,7 +321,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.5315,
       "delay_hours": 4,
-      "granger_p_value": 0.0,
+      "granger_p_value": 1.9430928409102176e-66,
       "corridor_bearing_deg": 223.2,
       "transmission_type": "Advective_Cascade"
     },
@@ -331,7 +331,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.5163,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 6.126032430231392e-52,
       "corridor_bearing_deg": 143.4,
       "transmission_type": "Synoptic_Sync"
     },
@@ -341,7 +341,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.5163,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.9284071617954975e-19,
       "corridor_bearing_deg": 324.0,
       "transmission_type": "Synoptic_Sync"
     },
@@ -351,7 +351,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.5067,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.331443815810577e-28,
       "corridor_bearing_deg": 172.5,
       "transmission_type": "Synoptic_Sync"
     },
@@ -361,7 +361,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.5067,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 4.0703754809183933e-45,
       "corridor_bearing_deg": 352.6,
       "transmission_type": "Synoptic_Sync"
     },
@@ -371,7 +371,7 @@
       "cluster_id": 3,
       "correlation_coefficient": 0.5002,
       "delay_hours": 12,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.261643164212633e-61,
       "corridor_bearing_deg": 267.9,
       "transmission_type": "Advective_Cascade"
     },
@@ -381,7 +381,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.4839,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.4648022856524867e-15,
       "corridor_bearing_deg": 100.1,
       "transmission_type": "Synoptic_Sync"
     },
@@ -391,7 +391,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.4839,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 6.028236252424449e-13,
       "corridor_bearing_deg": 282.3,
       "transmission_type": "Synoptic_Sync"
     },
@@ -401,7 +401,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.4793,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 3.412202312250249e-21,
       "corridor_bearing_deg": 9.5,
       "transmission_type": "Synoptic_Sync"
     },
@@ -411,7 +411,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.4793,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.3187407975143415e-18,
       "corridor_bearing_deg": 189.7,
       "transmission_type": "Synoptic_Sync"
     },
@@ -421,7 +421,7 @@
       "cluster_id": 0,
       "correlation_coefficient": 0.4764,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 5.15059610973772e-14,
       "corridor_bearing_deg": 111.5,
       "transmission_type": "Synoptic_Sync"
     },
@@ -431,7 +431,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.4764,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 7.494948333094799e-13,
       "corridor_bearing_deg": 293.7,
       "transmission_type": "Synoptic_Sync"
     },
@@ -441,7 +441,7 @@
       "cluster_id": 0,
       "correlation_coefficient": 0.4752,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 8.695960954595837e-25,
       "corridor_bearing_deg": 262.9,
       "transmission_type": "Synoptic_Sync"
     },
@@ -451,7 +451,7 @@
       "cluster_id": 0,
       "correlation_coefficient": 0.4752,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.0361198258667648e-11,
       "corridor_bearing_deg": 81.9,
       "transmission_type": "Synoptic_Sync"
     },
@@ -461,7 +461,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.4718,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.183250453454544e-27,
       "corridor_bearing_deg": 117.1,
       "transmission_type": "Synoptic_Sync"
     },
@@ -471,7 +471,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.4718,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 6.804102410790436e-17,
       "corridor_bearing_deg": 298.3,
       "transmission_type": "Synoptic_Sync"
     },
@@ -481,7 +481,7 @@
       "cluster_id": 0,
       "correlation_coefficient": 0.4676,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 7.547311874690731e-13,
       "corridor_bearing_deg": 121.3,
       "transmission_type": "Synoptic_Sync"
     },
@@ -491,7 +491,7 @@
       "cluster_id": 2,
       "correlation_coefficient": 0.4676,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 2.956526079247779e-16,
       "corridor_bearing_deg": 304.0,
       "transmission_type": "Synoptic_Sync"
     },
@@ -501,7 +501,7 @@
       "cluster_id": 1,
       "correlation_coefficient": 0.4647,
       "delay_hours": 0,
-      "granger_p_value": 0.0,
+      "granger_p_value": 3.091752067495169e-25,
       "corridor_bearing_deg": 215.7,
       "transmission_type": "Synoptic_Sync"
     }

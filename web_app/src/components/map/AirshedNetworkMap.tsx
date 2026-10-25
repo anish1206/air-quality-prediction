@@ -45,10 +45,10 @@ const hexToRgba = (hex: string, a: number) => {
 };
 
 const metricValue = (node: CityNodeStatus, metric: string) => {
-    if (metric === 'us_aqi') return node.us_aqi;
-    if (metric === 'pm2_5') return node.pm2_5;
-    if (metric === 'nitrogen_dioxide') return node.nitrogen_dioxide;
-    return node.chhi_score;
+    if (metric === 'us_aqi') return node.us_aqi ?? 0;
+    if (metric === 'pm2_5') return node.pm2_5 ?? 0;
+    if (metric === 'nitrogen_dioxide') return node.nitrogen_dioxide ?? 0;
+    return node.chhi_score ?? 0;
 };
 
 function distKm(lon1: number, lat1: number, lon2: number, lat2: number): number {
@@ -87,7 +87,9 @@ export function getSeverityColor(val: number, metric: string): { bg: string; bor
 export function getDynamicPlumeGeoJSON(currentStep: AirshedTimeStep, selectedMetric: string) {
     if (!currentStep || !currentStep.nodes) return { type: 'FeatureCollection' as const, features: [] };
 
-    const features = Object.entries(currentStep.nodes).map(([cityId, node]) => {
+    const features = Object.entries(currentStep.nodes)
+        .filter(([_, node]) => node.data_available !== false && node.pm2_5 !== null && node.pm2_5 !== undefined)
+        .map(([cityId, node]) => {
         // 1. Get the exact value for THIS specific time step
         const val = Number(
             node[selectedMetric as keyof CityNodeStatus] ??
@@ -197,7 +199,7 @@ const buildLayers = (
 
         // Compute midpoint ETA badge
         const realDistKm = distKm(srcNode.longitude, srcNode.latitude, tgtNode.longitude, tgtNode.latitude);
-        const avgWindSpeed = Math.max(6, (srcNode.wind_speed + tgtNode.wind_speed) / 2);
+        const avgWindSpeed = Math.max(6, ((srcNode.wind_speed ?? 6) + (tgtNode.wind_speed ?? 6)) / 2);
         const etaHours = Math.round(realDistKm / avgWindSpeed);
         const midPt = pts[Math.floor(pts.length / 2)] ?? interpolate(src, tgt, 0.5);
 
@@ -217,11 +219,14 @@ const buildLayers = (
     const pins: FC = {
         type: 'FeatureCollection',
         features: visible.map(([id, n]) => {
-            const val = Math.round(metricValue(n, metric));
-            const sev = getSeverityColor(val, metric);
+            const isAvail = n.data_available !== false && n.pm2_5 !== null && n.pm2_5 !== undefined;
+            const val = isAvail ? Math.round(metricValue(n, metric)) : 0;
+            const sev = isAvail ? getSeverityColor(val, metric) : { bg: 'rgba(107, 114, 128, 0.4)', border: '#6b7280' };
 
             let severityClass = 0;
-            if (metric === 'chhi_score') {
+            if (!isAvail) {
+                severityClass = 0;
+            } else if (metric === 'chhi_score') {
                 if (val > 50) severityClass = 2;
                 else if (val > 25) severityClass = 1;
             } else {
@@ -237,12 +242,13 @@ const buildLayers = (
                     cluster_id: n.cluster_id,
                     color: sev.border, // Dynamic risk severity color (inner dot)
                     ring: sev.border,  // Dynamic risk severity color (border ring)
-                    value: val,
-                    chhi_score: n.chhi_score,
-                    trigger: n.is_trigger_active ? 1 : 0,
-                    wind_dir: n.wind_dir,
-                    wind_speed: n.wind_speed,
+                    value: isAvail && val !== null ? val : 0,
+                    chhi_score: isAvail && n.chhi_score !== null ? n.chhi_score : 0,
+                    trigger: isAvail && n.is_trigger_active ? 1 : 0,
+                    wind_dir: n.wind_dir ?? 0,
+                    wind_speed: n.wind_speed ?? 0,
                     severityClass,
+                    data_available: isAvail ? 1 : 0,
                 },
                 geometry: { type: 'Point', coordinates: [n.longitude, n.latitude] },
             };

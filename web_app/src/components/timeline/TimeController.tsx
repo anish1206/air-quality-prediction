@@ -27,8 +27,9 @@ export default function TimeController({ forecastOpen = false, layerOpen = false
   const step = payload?.time_steps[selectedSubStep];
   const isObserved = step?.is_observed ?? selectedSubStep < 24;
   const node = step?.nodes[selectedCityId];
+  const isAvailable = node?.data_available ?? (node?.pm2_5 !== null && node?.pm2_5 !== undefined);
   const cascadeCount = step?.active_cascade_pulses.length ?? 0;
-  const chhi = node?.chhi_score ?? 35;
+  const chhi = isAvailable ? (node?.chhi_score ?? null) : null;
   const hazard = getHazardStyle(chhi);
 
   useEffect(() => {
@@ -95,6 +96,11 @@ export default function TimeController({ forecastOpen = false, layerOpen = false
                 {cascadeCount} cascade{cascadeCount === 1 ? '' : 's'}
               </span>
             )}
+            {!isAvailable && (
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap text-amber-400 bg-amber-500/10 border border-amber-500/30">
+                ⚠️ Station Offline
+              </span>
+            )}
             <span
               className="text-[10px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap"
               style={{
@@ -103,7 +109,7 @@ export default function TimeController({ forecastOpen = false, layerOpen = false
                 border: `1px solid ${hazard.color}44`,
               }}
             >
-              CHHI&nbsp;{chhi.toFixed(0)}&nbsp;·&nbsp;{hazard.label}
+              {chhi !== null && chhi !== undefined ? `CHHI ${chhi.toFixed(0)} · ${hazard.label}` : hazard.label}
             </span>
             <span className="text-[10px] text-[#6f6f6f] px-2 py-0.5 rounded-full border border-[#2a2a2a] bg-[#161616] whitespace-nowrap font-mono">
               {dayOffset === 0 ? 'T' : dayOffset > 0 ? `T+${dayOffset}d` : `T${dayOffset}d`} / {SLOT_TIMES[slot]}

@@ -13,6 +13,7 @@ PARQUET_PATH = PROJECT_ROOT / "data" / "processed" / "master_multi_city_4h.parqu
 GRAPH_PATH   = PROJECT_ROOT / "data" / "models" / "causal_graph.json"
 OUTPUT_PATH  = PROJECT_ROOT / "data" / "models" / "edge_severity_deltas.json"
 PM25_THRESHOLD = 100  # same as airshed_pipeline
+MIN_TRIGGER_EVENTS = 20  # from v4 audit (P3-A)
 
 def main():
     df = pd.read_parquet(PARQUET_PATH)
@@ -45,15 +46,27 @@ def main():
                 delta_values.append(float(delta))
 
         key = f"{src}__{tgt}"
-        deltas[key] = {
-            "mean_delta": round(float(pd.Series(delta_values).mean()), 2) if delta_values else 0.0,
-            "median_delta": round(float(pd.Series(delta_values).median()), 2) if delta_values else 0.0,
-            "std_delta": round(float(pd.Series(delta_values).std()), 2) if delta_values else 0.0,
-            "n_trigger_events": len(delta_values),
-            "transfer_ratio": round(
-                float(pd.Series(delta_values).mean() / s[s > PM25_THRESHOLD].mean()), 3
-            ) if delta_values and s[s > PM25_THRESHOLD].mean() > 0 else 0.0
-        }
+        n_events = len(delta_values)
+        if n_events >= MIN_TRIGGER_EVENTS:
+            deltas[key] = {
+                "mean_delta": round(float(pd.Series(delta_values).mean()), 2),
+                "median_delta": round(float(pd.Series(delta_values).median()), 2),
+                "std_delta": round(float(pd.Series(delta_values).std()), 2),
+                "n_trigger_events": n_events,
+                "transfer_ratio": round(
+                    float(pd.Series(delta_values).mean() / s[s > PM25_THRESHOLD].mean()), 3
+                ) if s[s > PM25_THRESHOLD].mean() > 0 else 0.0,
+                "reliable": True
+            }
+        else:
+            deltas[key] = {
+                "mean_delta": None,
+                "median_delta": None,
+                "std_delta": None,
+                "n_trigger_events": n_events,
+                "transfer_ratio": None,
+                "reliable": False
+            }
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_PATH, "w") as f:

@@ -4,7 +4,9 @@
 # Large model files
 data/aqi_forecast_model.pkl
 *.pkl
+!data/models/cascade_predictor_v4.pkl
 *.h5
 *.pt
 *.pth
 .idea/
+.cache_live.sqlite*

@@ -11,21 +11,23 @@ interface RawCityNode {
   cluster_id: number;
   latitude: number;
   longitude: number;
-  us_aqi: number;
-  pm2_5: number;
-  pm10: number;
-  no2?: number;
-  nitrogen_dioxide?: number;
-  temp: number;
-  humidity: number;
-  wind_speed: number;
-  wind_dir: number;
-  wind_u: number;
-  wind_v: number;
-  chhi_score?: number;
-  anomaly_z_score?: number;
-  hazard_level: string;
-  is_trigger_active: boolean;
+  us_aqi?: number | null;
+  pm2_5?: number | null;
+  pm10?: number | null;
+  no2?: number | null;
+  nitrogen_dioxide?: number | null;
+  temp?: number | null;
+  humidity?: number | null;
+  wind_speed?: number | null;
+  wind_dir?: number | null;
+  wind_u?: number | null;
+  wind_v?: number | null;
+  surface_pressure?: number | null;
+  chhi_score?: number | null;
+  anomaly_z_score?: number | null;
+  hazard_level?: string;
+  is_trigger_active?: boolean;
+  data_available?: boolean;
 }
 
 interface RawPayload {
@@ -37,28 +39,58 @@ interface RawPayload {
 }
 
 const normalizeNode = (raw: RawCityNode): CityNodeStatus => {
-  const no2 = raw.nitrogen_dioxide ?? raw.no2 ?? 0;
-  const chhi = raw.chhi_score ?? zToChhi(raw.anomaly_z_score ?? 0);
+  const isAvailable = raw.data_available ?? (raw.pm2_5 !== null && raw.pm2_5 !== undefined);
+
+  if (!isAvailable) {
+    return {
+      city_name: raw.city_name,
+      cluster_id: raw.cluster_id,
+      latitude: raw.latitude,
+      longitude: raw.longitude,
+      us_aqi: null,
+      pm2_5: null,
+      pm10: null,
+      no2: null,
+      nitrogen_dioxide: null,
+      temp: null,
+      humidity: null,
+      wind_speed: null,
+      wind_dir: null,
+      wind_u: null,
+      wind_v: null,
+      surface_pressure: null,
+      anomaly_z_score: null,
+      chhi_score: null,
+      hazard_level: 'Unknown',
+      is_trigger_active: false,
+      data_available: false,
+    };
+  }
+
+  const no2 = raw.nitrogen_dioxide ?? raw.no2 ?? null;
+  const chhi = raw.chhi_score ?? (raw.anomaly_z_score !== null && raw.anomaly_z_score !== undefined ? zToChhi(raw.anomaly_z_score) : null);
   return {
     city_name: raw.city_name,
     cluster_id: raw.cluster_id,
     latitude: raw.latitude,
     longitude: raw.longitude,
-    us_aqi: raw.us_aqi,
-    pm2_5: raw.pm2_5,
-    pm10: raw.pm10,
+    us_aqi: raw.us_aqi ?? null,
+    pm2_5: raw.pm2_5 ?? null,
+    pm10: raw.pm10 ?? null,
     no2,
     nitrogen_dioxide: no2,
-    temp: raw.temp,
-    humidity: raw.humidity,
-    wind_speed: raw.wind_speed,
-    wind_dir: raw.wind_dir,
-    wind_u: raw.wind_u,
-    wind_v: raw.wind_v,
-    anomaly_z_score: raw.anomaly_z_score ?? 0,
+    temp: raw.temp ?? null,
+    humidity: raw.humidity ?? null,
+    wind_speed: raw.wind_speed ?? null,
+    wind_dir: raw.wind_dir ?? null,
+    wind_u: raw.wind_u ?? null,
+    wind_v: raw.wind_v ?? null,
+    surface_pressure: raw.surface_pressure ?? null,
+    anomaly_z_score: raw.anomaly_z_score ?? null,
     chhi_score: chhi,
-    hazard_level: normalizeHazard(raw.hazard_level, chhi),
-    is_trigger_active: raw.is_trigger_active,
+    hazard_level: chhi !== null ? normalizeHazard(raw.hazard_level || '', chhi) : 'Unknown',
+    is_trigger_active: Boolean(raw.is_trigger_active),
+    data_available: true,
   };
 };
 

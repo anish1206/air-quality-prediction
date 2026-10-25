@@ -4,349 +4,399 @@
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 697,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "LKO__KNP": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 787,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "BHO__IND": {
-    "mean_delta": 0.0,
-    "median_delta": 0.0,
-    "std_delta": 0.0,
+    "mean_delta": null,
+    "median_delta": null,
+    "std_delta": null,
     "n_trigger_events": 13,
-    "transfer_ratio": 0.0
+    "transfer_ratio": null,
+    "reliable": false
   },
   "IND__BHO": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 23,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "CSN__NSK": {
-    "mean_delta": 0.0,
-    "median_delta": 0.0,
-    "std_delta": 0.0,
+    "mean_delta": null,
+    "median_delta": null,
+    "std_delta": null,
     "n_trigger_events": 17,
-    "transfer_ratio": 0.0
+    "transfer_ratio": null,
+    "reliable": false
   },
   "NSK__CSN": {
-    "mean_delta": 0.0,
-    "median_delta": 0.0,
-    "std_delta": 0.0,
+    "mean_delta": null,
+    "median_delta": null,
+    "std_delta": null,
     "n_trigger_events": 12,
-    "transfer_ratio": 0.0
+    "transfer_ratio": null,
+    "reliable": false
   },
   "AGR__KNP": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 1318,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "KNP__AGR": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 697,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "KNP__VAR": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 697,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "VAR__KNP": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 768,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "LKO__VAR": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 787,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "VAR__LKO": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 768,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "AGR__DEL": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 1318,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "DEL__AGR": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 1251,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "NSK__PUN": {
-    "mean_delta": 0.0,
-    "median_delta": 0.0,
-    "std_delta": 0.0,
+    "mean_delta": null,
+    "median_delta": null,
+    "std_delta": null,
     "n_trigger_events": 12,
-    "transfer_ratio": 0.0
+    "transfer_ratio": null,
+    "reliable": false
   },
   "PUN__NSK": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 25,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "CSN__PUN": {
-    "mean_delta": 0.0,
-    "median_delta": 0.0,
-    "std_delta": 0.0,
+    "mean_delta": null,
+    "median_delta": null,
+    "std_delta": null,
     "n_trigger_events": 17,
-    "transfer_ratio": 0.0
+    "transfer_ratio": null,
+    "reliable": false
   },
   "PUN__CSN": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 25,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "PAT__VAR": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 958,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "VAR__PAT": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 768,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "DEL__KNP": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 1251,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "KNP__DEL": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 697,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "DEL__LKO": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 1251,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "LKO__DEL": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 787,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "NSK__SUR": {
-    "mean_delta": 0.0,
-    "median_delta": 0.0,
-    "std_delta": 0.0,
+    "mean_delta": null,
+    "median_delta": null,
+    "std_delta": null,
     "n_trigger_events": 12,
-    "transfer_ratio": 0.0
+    "transfer_ratio": null,
+    "reliable": false
   },
   "SUR__NSK": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 191,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "LKO__PAT": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 787,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "PAT__LKO": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 958,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "AGR__LKO": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 1318,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "LKO__AGR": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 787,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "BOM__SUR": {
     "mean_delta": 6.48,
     "median_delta": 3.07,
     "std_delta": 31.82,
     "n_trigger_events": 204,
-    "transfer_ratio": 0.045
+    "transfer_ratio": 0.045,
+    "reliable": true
   },
   "NSK__BOM": {
-    "mean_delta": 23.55,
-    "median_delta": 9.68,
-    "std_delta": 35.59,
+    "mean_delta": null,
+    "median_delta": null,
+    "std_delta": null,
     "n_trigger_events": 12,
-    "transfer_ratio": 0.224
+    "transfer_ratio": null,
+    "reliable": false
   },
   "BHO__NAG": {
-    "mean_delta": 0.0,
-    "median_delta": 0.0,
-    "std_delta": 0.0,
+    "mean_delta": null,
+    "median_delta": null,
+    "std_delta": null,
     "n_trigger_events": 13,
-    "transfer_ratio": 0.0
+    "transfer_ratio": null,
+    "reliable": false
   },
   "NAG__BHO": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 92,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "AHM__SUR": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 26,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "SUR__AHM": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 191,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "MAA__BLR": {
-    "mean_delta": -4.57,
-    "median_delta": -4.57,
-    "std_delta": NaN,
+    "mean_delta": null,
+    "median_delta": null,
+    "std_delta": null,
     "n_trigger_events": 1,
-    "transfer_ratio": -0.037
+    "transfer_ratio": null,
+    "reliable": false
   },
   "KNP__PAT": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 697,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "PAT__KNP": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 958,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "CSN__IND": {
-    "mean_delta": 0.0,
-    "median_delta": 0.0,
-    "std_delta": 0.0,
+    "mean_delta": null,
+    "median_delta": null,
+    "std_delta": null,
     "n_trigger_events": 17,
-    "transfer_ratio": 0.0
+    "transfer_ratio": null,
+    "reliable": false
   },
   "IND__CSN": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 23,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "AGR__VAR": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 1318,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "VAR__AGR": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 768,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "AGR__JAI": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 1318,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "JAI__AGR": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 72,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "IND__NAG": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 23,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "NAG__IND": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 92,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "DEL__VAR": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 1251,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "VAR__DEL": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 768,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   },
   "IND__NSK": {
     "mean_delta": 0.0,
     "median_delta": 0.0,
     "std_delta": 0.0,
     "n_trigger_events": 23,
-    "transfer_ratio": 0.0
+    "transfer_ratio": 0.0,
+    "reliable": true
   }
 }

@@ -2,7 +2,9 @@ export type HazardLevel =
     | 'Low Risk'
     | 'Moderate Risk'
     | 'High Hazard'
-    | 'Critical Hazard';
+    | 'Critical Hazard'
+    | 'Unknown'
+    | 'No Data';
 
 export type AirshedMetric = 'chhi_score' | 'us_aqi' | 'pm2_5' | 'nitrogen_dioxide';
 
@@ -29,22 +31,24 @@ export interface CityNodeStatus {
     cluster_id: number;
     latitude: number;
     longitude: number;
-    us_aqi: number;
-    pm2_5: number;
-    pm10: number;
+    us_aqi: number | null;
+    pm2_5: number | null;
+    pm10: number | null;
     // JSON uses "no2" — keep both so nothing breaks
-    no2: number;
-    nitrogen_dioxide: number; // computed alias in selectors
-    temp: number;
-    humidity: number;
-    wind_speed: number;
-    wind_dir: number;
-    wind_u: number;
-    wind_v: number;
-    anomaly_z_score: number;  // raw JSON field
-    chhi_score: number;        // derived: zToChhi(anomaly_z_score)
+    no2: number | null;
+    nitrogen_dioxide: number | null; // computed alias in selectors
+    temp: number | null;
+    humidity: number | null;
+    wind_speed: number | null;
+    wind_dir: number | null;
+    wind_u: number | null;
+    wind_v: number | null;
+    surface_pressure?: number | null;
+    anomaly_z_score: number | null;  // raw JSON field
+    chhi_score: number | null;        // derived: zToChhi(anomaly_z_score) or null if no data
     hazard_level: HazardLevel;
     is_trigger_active: boolean;
+    data_available?: boolean;
 }
 
 export interface CausalNetworkEdge {

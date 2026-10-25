@@ -30,7 +30,10 @@ export const normalizeHazard = (raw: string, chhi: number): HazardLevel => {
   return 'Critical Hazard';
 };
 
-export const getHazardStyle = (score: number) => {
+export const getHazardStyle = (score: number | null | undefined) => {
+  if (score === null || score === undefined || isNaN(score)) {
+    return { label: 'No Data', color: '#9ca3af', bg: 'rgba(156,163,175,0.10)', border: 'rgba(156,163,175,0.30)' };
+  }
   if (score <= 25) return { label: 'Low Risk', color: '#27ae60', bg: 'rgba(39,174,96,0.10)', border: 'rgba(39,174,96,0.30)' };
   if (score <= 50) return { label: 'Moderate Risk', color: '#f39c12', bg: 'rgba(243,156,18,0.10)', border: 'rgba(243,156,18,0.30)' };
   if (score <= 75) return { label: 'High Hazard', color: '#e67e22', bg: 'rgba(230,126,34,0.10)', border: 'rgba(230,126,34,0.30)' };
@@ -111,15 +114,22 @@ export const buildCityForecast = (payload: AirshedNetworkPayload, cityId: string
     const slots = payload.time_steps.slice(d * SLOTS_PER_DAY, d * SLOTS_PER_DAY + SLOTS_PER_DAY);
     const nodes = slots.map((s) => s.nodes[cityId]).filter(Boolean);
     if (!nodes.length) continue;
+
+    const validChhi = nodes.map(n => n.chhi_score).filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
+    const validAqi = nodes.map(n => n.us_aqi).filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
+    const validPm25 = nodes.map(n => n.pm2_5).filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
+    const validTemp = nodes.map(n => n.temp).filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
+    const validWind = nodes.map(n => n.wind_speed).filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
+
     days.push({
       offset: d - 3,
       date_str: slots[0]?.date_formatted?.split(',')[0] ?? `D${d - 3}`,
-      chhi_score: nodes.reduce((a, n) => a + n.chhi_score, 0) / nodes.length,
-      us_aqi: nodes.reduce((a, n) => a + n.us_aqi, 0) / nodes.length,
-      pm2_5: nodes.reduce((a, n) => a + n.pm2_5, 0) / nodes.length,
-      temp_max: Math.max(...nodes.map((n) => n.temp)),
-      temp_min: Math.min(...nodes.map((n) => n.temp)),
-      wind_speed_max: Math.max(...nodes.map((n) => n.wind_speed)),
+      chhi_score: validChhi.length ? validChhi.reduce((a, b) => a + b, 0) / validChhi.length : 0,
+      us_aqi: validAqi.length ? validAqi.reduce((a, b) => a + b, 0) / validAqi.length : 0,
+      pm2_5: validPm25.length ? validPm25.reduce((a, b) => a + b, 0) / validPm25.length : 0,
+      temp_max: validTemp.length ? Math.max(...validTemp) : 0,
+      temp_min: validTemp.length ? Math.min(...validTemp) : 0,
+      wind_speed_max: validWind.length ? Math.max(...validWind) : 0,
       isObserved: slots.every((s) => s.is_observed),
       sub_daily: slots.map((s, i) => {
         const n = s.nodes[cityId];
@@ -127,7 +137,7 @@ export const buildCityForecast = (payload: AirshedNetworkPayload, cityId: string
           time: s.hour_ist ?? SLOT_TIMES[i],
           date_str: s.date_formatted,
           chhi_score: n?.chhi_score ?? 0,
-          hazard_category: n?.hazard_level ?? 'Low Risk',
+          hazard_category: n?.hazard_level ?? 'Unknown',
           us_aqi: n?.us_aqi ?? 0,
           pm2_5: n?.pm2_5 ?? 0,
           pm10: n?.pm10 ?? 0,

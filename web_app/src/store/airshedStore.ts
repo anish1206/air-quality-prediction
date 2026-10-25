@@ -13,11 +13,14 @@ const enrichPayload = (raw: AirshedNetworkPayload): AirshedNetworkPayload => ({
         ...ts,
         nodes: Object.fromEntries(
             Object.entries(ts.nodes).map(([id, n]) => {
-                const chhi = zToChhi((n as any).anomaly_z_score ?? 0);
+                const isAvail = (n as any).data_available ?? ((n as any).pm2_5 !== null && (n as any).pm2_5 !== undefined);
+                const rawZ = (n as any).anomaly_z_score;
+                const chhi = (n as any).chhi_score ?? (isAvail && rawZ !== null && rawZ !== undefined ? zToChhi(rawZ) : null);
                 const enriched: CityNodeStatus = {
                     ...n,
                     chhi_score: chhi,
-                    nitrogen_dioxide: (n as any).no2 ?? (n as any).nitrogen_dioxide ?? 0,
+                    nitrogen_dioxide: (n as any).no2 ?? (n as any).nitrogen_dioxide ?? null,
+                    data_available: isAvail,
                 };
                 return [id, enriched];
             }),

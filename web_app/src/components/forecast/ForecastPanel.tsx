@@ -63,14 +63,20 @@ const flattenSubDaily = (data: DayData[]): SubSlot[] =>
   [...data].sort((a, b) => a.offset - b.offset).flatMap((d) => d.sub_daily);
 
 // ── CHHI helpers ──────────────────────────────────────────────────────────────
-const getHazardLevel = (score: number) => {
+const getHazardLevel = (score: number | null | undefined) => {
+  if (score === null || score === undefined || isNaN(score)) {
+    return { label: 'No Station Data', color: '#9ca3af', bg: 'rgba(156,163,175,0.08)', border: 'rgba(156,163,175,0.25)' };
+  }
   if (score <= 25) return { label: 'Low Risk',        color: '#10b981', bg: 'rgba(16,185,129,0.08)',  border: 'rgba(16,185,129,0.25)' };
   if (score <= 50) return { label: 'Moderate Hazard', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.25)' };
   if (score <= 75) return { label: 'High Health Risk',color: '#f97316', bg: 'rgba(249,115,22,0.08)', border: 'rgba(249,115,22,0.25)' };
   return                 { label: 'Critical Hazard',  color: '#e11d48', bg: 'rgba(225,29,72,0.08)',  border: 'rgba(225,29,72,0.25)'  };
 };
 
-const getAdvisory = (score: number) => {
+const getAdvisory = (score: number | null | undefined) => {
+  if (score === null || score === undefined || isNaN(score)) {
+    return 'Station offline: Live air quality observations unavailable for this time slot.';
+  }
   if (score <= 25) return 'Safe for all outdoor activities and exercise.';
   if (score <= 50) return 'Unusually sensitive individuals should limit prolonged outdoor exertion.';
   if (score <= 75) return 'Asthma & Cardiac Alert: Restrict strenuous outdoor activities during peak hours.';
@@ -293,7 +299,8 @@ export default function ForecastPanel({ payload, onClose }: Props) {
 
   const allSlots   = flattenSubDaily(data);
   const activeSlot = allSlots[selectedSubStep] ?? allSlots[18];
-  const activeChhi = activeSlot?.chhi_score ?? 35;
+  const isDataAvail = activeNode?.data_available !== false && activeNode?.pm2_5 !== null && activeNode?.pm2_5 !== undefined;
+  const activeChhi = isDataAvail ? (activeSlot?.chhi_score ?? null) : null;
   const hazard     = getHazardLevel(activeChhi);
 
   // ── Charts ────────────────────────────────────────────────────────────────
@@ -408,6 +415,11 @@ export default function ForecastPanel({ payload, onClose }: Props) {
               <span className="text-[10px] font-mono text-white/40">
                 {isObserved ? 'OBSERVED' : 'FORECAST'} · {SLOT_LABELS[slotIdx]}
               </span>
+              {activeNode?.data_available === false && (
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full border border-amber-500/40 bg-amber-500/15 text-amber-400 font-semibold tracking-wide">
+                  ⚠️ Sensor Offline (No Live Data)
+                </span>
+              )}
             </div>
 
             {incoming[0] && (
@@ -476,7 +488,7 @@ export default function ForecastPanel({ payload, onClose }: Props) {
               >
                 <div className="flex items-baseline gap-2">
                   <span className="text-[36px] font-bold leading-none" style={{ color: hazard.color }}>
-                    {activeChhi.toFixed(1)}
+                    {activeChhi !== null ? activeChhi.toFixed(1) : '—'}
                   </span>
                   <span className="text-[15px] text-white/30">/ 100</span>
                 </div>

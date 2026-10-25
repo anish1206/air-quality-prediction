@@ -173,37 +173,28 @@ def compute_cross_correlation(series_a, series_b, max_lag):
     return max_corr, optimal_lag, p_val, correlations
 
 
-def run_granger_causality(series_a, series_b, max_lag=6):
+def run_granger_causality(series_cause, series_effect, max_lag=6):
     """
-    Run Granger causality test for series A causing series B.
-    
+    Run Granger causality test for series_cause Granger-causing series_effect.
+    statsmodels tests if column 1 (x[:, 1]) Granger-causes column 0 (x[:, 0]).
     Returns:
-        min_p_value: Minimum p-value across all lag orders
+        min_p_value: Minimum p-value across all lag orders (from ssr_ftest)
         best_lag: Lag order with minimum p-value
     """
-    # Prepare data for Granger test (column 0 is the cause, column 1 is the effect)
-    data = np.column_stack([series_a, series_b])
-    
+    data = np.column_stack([series_effect, series_cause])
     min_p_value = 1.0
     best_lag = 1
-    
+
     try:
-        # Test multiple lag orders
-        for lag in range(1, max_lag + 1):
-            try:
-                result = grangercausalitytests(data, lag, verbose=False)
-                # Extract p-value from F-test (second test in the result)
-                p_value = result[0][1][1]  # [lag][test_index][p_value]
-                
-                if p_value < min_p_value:
-                    min_p_value = p_value
-                    best_lag = lag
-            except:
-                continue
+        results = grangercausalitytests(data, maxlag=max_lag)
+        for lag, (test_dict, _) in results.items():
+            p_val = float(test_dict['ssr_ftest'][1])
+            if p_val < min_p_value:
+                min_p_value = p_val
+                best_lag = lag
     except Exception as e:
-        # If Granger test fails, return high p-value
-        pass
-    
+        min_p_value = 1.0
+
     return min_p_value, best_lag
 
 
@@ -303,6 +294,9 @@ def compute_causal_graph(ts_matrix, cities_metadata, city_cluster_mapping):
                 if abs(max_corr) < MIN_CORRELATION:
                     continue
                 
+                # Step 1b: Granger causality test (source causing target)
+                granger_p, _ = run_granger_causality(series_source, series_target, max_lag=6)
+                
                 # Step 2: Calculate corridor bearing
                 source_city = city_lookup[source]
                 target_city = city_lookup[target]
@@ -331,7 +325,7 @@ def compute_causal_graph(ts_matrix, cities_metadata, city_cluster_mapping):
                     "cluster_id": int(cluster_id),
                     "correlation_coefficient": float(round(abs(max_corr), 4)),
                     "delay_hours": int(delay_hours),
-                    "granger_p_value": float(round(p_val, 6)),
+                    "granger_p_value": float(granger_p),
                     "corridor_bearing_deg": float(round(bearing, 1)),
                     "transmission_type": transmission_type
                 }

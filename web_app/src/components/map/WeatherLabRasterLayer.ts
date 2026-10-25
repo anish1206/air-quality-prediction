@@ -102,12 +102,14 @@ export function renderWeatherLabField(
 ): HTMLCanvasElement | ImageBitmap | null {
     const { ctx } = getOffCanvas();
 
-    // Build node list for IDW
-    const entries: NodeEntry[] = Object.values(nodes).map((n) => ({
-        lon: n.longitude,
-        lat: n.latitude,
-        value: metricVal(n, metric),
-    }));
+    // Build node list for IDW (filtering offline/missing stations)
+    const entries: NodeEntry[] = Object.values(nodes)
+        .filter((n) => n.data_available !== false && n.pm2_5 !== null && n.pm2_5 !== undefined)
+        .map((n) => ({
+            lon: n.longitude,
+            lat: n.latitude,
+            value: metricVal(n, metric) ?? 0,
+        }));
 
     if (entries.length === 0) return null;
 
@@ -148,10 +150,10 @@ export function renderWeatherLabField(
 
 // ── Metric accessor ───────────────────────────────────────────────────────────
 function metricVal(n: CityNodeStatus, metric: string): number {
-    if (metric === 'us_aqi') return n.us_aqi;
-    if (metric === 'pm2_5') return n.pm2_5;
-    if (metric === 'nitrogen_dioxide') return n.nitrogen_dioxide;
-    return n.chhi_score;
+    if (metric === 'us_aqi') return n.us_aqi ?? 0;
+    if (metric === 'pm2_5') return n.pm2_5 ?? 0;
+    if (metric === 'nitrogen_dioxide') return n.nitrogen_dioxide ?? 0;
+    return n.chhi_score ?? 0;
 }
 
 // ── MapLibre source/layer registration ───────────────────────────────────────

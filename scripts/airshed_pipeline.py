@@ -319,21 +319,44 @@ def evaluate_cascade_triggers(cities_data, cities_metadata, causal_graph, timest
 
     edges = causal_graph['edges']
 
-    # Build an inline predict function compatible with the actual pkl structure
+    # Build an inline predict function compatible with both artifact contracts
     _predict_cascade = None
     if cascade_model is not None:
         try:
-            _clf        = cascade_model['classifier']
-            _imputer    = cascade_model.get('imputer')
-            _feat_cols  = cascade_model['feature_cols']
-            _threshold  = cascade_model.get('optimal_decision_threshold', 0.5)
+            import math
+            import numpy as _np
+
+            _feat_cols = cascade_model['feature_cols']
+
+            # Contract A: Sklearn / CalibratedClassifierCV contract (e.g. data/models/cascade_predictor_v4.pkl)
+            if 'classifier' in cascade_model:
+                _clf       = cascade_model['classifier']
+                _imputer   = cascade_model.get('imputer')
+                _threshold = cascade_model.get('optimal_decision_threshold', 0.5)
+
+                def _infer_prob(X_arr):
+                    if _imputer is not None:
+                        X_arr = _imputer.transform(X_arr)
+                    return float(_clf.predict_proba(X_arr)[0, 1])
+
+            # Contract B: LightGBM + Isotonic Calibrator contract (e.g. notebooks v4)
+            elif 'lgb_model' in cascade_model and 'calib_lgb' in cascade_model:
+                _lgb_m     = cascade_model['lgb_model']
+                _calib     = cascade_model['calib_lgb']
+                _threshold = cascade_model.get('threshold', 0.5)
+
+                def _infer_prob(X_arr):
+                    nan_mask = ~_np.isfinite(X_arr)
+                    if nan_mask.any():
+                        X_arr = _np.where(nan_mask, 0.0, X_arr)
+                    raw_prob = _lgb_m.predict_proba(X_arr)[:, 1]
+                    return float(_calib.predict(raw_prob)[0])
+            else:
+                raise ValueError(f"Unknown cascade model format. Keys present: {list(cascade_model.keys())}")
 
             def _predict_cascade(src_node, tgt_node, edge, t):
-                """Inline predict using the actual pkl structure."""
-                # Build feature row matching feature_cols order
-                row = {}
-                for col in _feat_cols:
-                    row[col] = float('nan')
+                """Inline predict cascade probability."""
+                row = {c: float('nan') for c in _feat_cols}
 
                 row['source_pm25_t']         = src_node.get('pm2_5') or float('nan')
                 row['source_pm25_zscore_t']  = src_node.get('anomaly_z_score') or float('nan')
@@ -349,25 +372,59 @@ def evaluate_cascade_triggers(cities_data, cities_metadata, causal_graph, timest
                 row['target_temp_t']         = tgt_node.get('temp') or float('nan')
                 row['correlation_strength']  = edge.get('correlation_coefficient', 0.5)
                 row['delay_hours']           = edge.get('delay_hours', 0)
-                row['bearing_deg']           = edge.get('corridor_bearing_deg', 0.0)
-                row['pressure_gradient_t']   = (
-                    (src_node.get('temp') or 0) - (tgt_node.get('temp') or 0)
-                )
-                row['temp_gradient_t']       = row['pressure_gradient_t']
-                ts = t if isinstance(t, pd.Timestamp) else pd.Timestamp(t)
-                row['hour_sin']  = float(pd.Series([ts]).dt.hour.map(lambda h: __import__('math').sin(2*__import__('math').pi*h/24)).iloc[0])
-                row['hour_cos']  = float(pd.Series([ts]).dt.hour.map(lambda h: __import__('math').cos(2*__import__('math').pi*h/24)).iloc[0])
-                row['month_sin'] = float(pd.Series([ts]).dt.month.map(lambda m: __import__('math').sin(2*__import__('math').pi*m/12)).iloc[0])
-                row['month_cos'] = float(pd.Series([ts]).dt.month.map(lambda m: __import__('math').cos(2*__import__('math').pi*m/12)).iloc[0])
+                b_deg                        = edge.get('corridor_bearing_deg', 0.0)
+                row['bearing_deg']           = b_deg
 
-                import numpy as _np
+                # Correct pressure and temperature gradients
+                src_sp = src_node.get('surface_pressure')
+                tgt_sp = tgt_node.get('surface_pressure')
+                if src_sp is not None and tgt_sp is not None:
+                    row['pressure_gradient_t'] = float(src_sp) - float(tgt_sp)
+                else:
+                    row['pressure_gradient_t'] = float('nan')
+
+                src_temp = src_node.get('temp')
+                tgt_temp = tgt_node.get('temp')
+                if src_temp is not None and tgt_temp is not None:
+                    row['temp_gradient_t'] = float(src_temp) - float(tgt_temp)
+                else:
+                    row['temp_gradient_t'] = float('nan')
+
+                # Geodesic distance and implied speed
+                src_lat, src_lon = src_node.get('latitude'), src_node.get('longitude')
+                tgt_lat, tgt_lon = tgt_node.get('latitude'), tgt_node.get('longitude')
+                if src_lat is not None and tgt_lat is not None:
+                    dlat = math.radians(tgt_lat - src_lat)
+                    dlon = math.radians(tgt_lon - src_lon)
+                    a = math.sin(dlat / 2)**2 + math.cos(math.radians(src_lat)) * math.cos(math.radians(tgt_lat)) * math.sin(dlon / 2)**2
+                    dist_km = 6371.0 * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+                    row['distance_km'] = dist_km
+                    row['implied_speed_kmh'] = dist_km / max(1, row['delay_hours'])
+
+                # Wind transport projection along corridor bearing
+                u = row['source_wind_u_t']
+                v = row['source_wind_v_t']
+                if not math.isnan(u) and not math.isnan(v):
+                    b_rad = math.radians(float(b_deg))
+                    row['wind_transport_alignment'] = u * math.sin(b_rad) + v * math.cos(b_rad)
+
+                # Calendar features
+                ts = t if isinstance(t, pd.Timestamp) else pd.Timestamp(t)
+                h = ts.hour
+                m = ts.month
+                row['hour_sin']  = math.sin(2 * math.pi * h / 24)
+                row['hour_cos']  = math.cos(2 * math.pi * h / 24)
+                row['month_sin'] = math.sin(2 * math.pi * m / 12)
+                row['month_cos'] = math.cos(2 * math.pi * m / 12)
+
                 X = _np.array([[row.get(c, float('nan')) for c in _feat_cols]])
-                if _imputer is not None:
-                    X = _imputer.transform(X)
-                prob = float(_clf.predict_proba(X)[0, 1])
-                return prob
+                prob = _infer_prob(X)
+                return max(0.0, min(1.0, prob))
+
         except Exception as e:
             print(f"WARNING: Could not build cascade predict function: {e}")
+            import traceback
+            traceback.print_exc()
 
     # Build time step data
     time_steps_data = []
@@ -436,6 +493,7 @@ def evaluate_cascade_triggers(cities_data, cities_metadata, causal_graph, timest
                     "wind_dir":         _safe('wind_direction'),
                     "wind_u":           _safe('wind_u'),
                     "wind_v":           _safe('wind_v'),
+                    "surface_pressure": _safe('surface_pressure'),
                     "anomaly_z_score":  _safe('pm2_5_zscore'),
                     "hazard_level":     hazard_level,
                     "is_trigger_active": is_trigger_active,
@@ -458,6 +516,7 @@ def evaluate_cascade_triggers(cities_data, cities_metadata, causal_graph, timest
                     "wind_dir":         None,
                     "wind_u":           None,
                     "wind_v":           None,
+                    "surface_pressure": None,
                     "anomaly_z_score":  None,
                     "hazard_level":     "Unknown",
                     "is_trigger_active": False,
@@ -492,14 +551,15 @@ def evaluate_cascade_triggers(cities_data, cities_metadata, causal_graph, timest
                             source_node, target_node, edge, pd.Timestamp(timestep)
                         )
                         confidence_pct = prob * 100
-                    except Exception:
-                        pass  # keep heuristic fallback
+                    except Exception as ex:
+                        print(f"  [WARN] Cascade inference failed for {source}->{target} at {timestep}: {ex}")
 
-                # Severity delta: per-edge historical mean, else flat 30%
+                # Severity delta: per-edge historical mean when reliable, else flat 30%
                 src_pm25 = source_node.get('pm2_5') or 0.0
                 edge_key = f"{source}__{target}"
-                if edge_deltas and edge_key in edge_deltas:
-                    severity_delta_pm25 = edge_deltas[edge_key].get("mean_delta", src_pm25 * 0.3)
+                delta_info = edge_deltas.get(edge_key, {}) if edge_deltas else {}
+                if delta_info.get("reliable") and delta_info.get("mean_delta") is not None:
+                    severity_delta_pm25 = float(delta_info["mean_delta"])
                 else:
                     severity_delta_pm25 = src_pm25 * 0.3
 
