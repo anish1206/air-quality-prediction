@@ -1,5 +1,6 @@
 .agents
 .archify
+.claude
 brag-output
 
 # Large model files

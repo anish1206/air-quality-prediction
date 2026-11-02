@@ -1,0 +1,28 @@
+{
+  "updated_at": "2026-11-02T15:31:46.140999+05:30",
+  "latest_mae": 0.0,
+  "latest_rmse": 0.0,
+  "latest_bias": 0.0,
+  "history_30d": [
+    {
+      "date": "2026-11-02",
+      "timestamp": "2026-11-02T15:31:46.093647+05:30",
+      "overall_mae": 0.0,
+      "overall_rmse": 0.0,
+      "overall_bias": 0.0,
+      "psi": {
+        "source_pm25_t": 5.5611
+      },
+      "city_mae": {}
+    }
+  ],
+  "psi_metrics": {
+    "source_pm25_t": 5.5611
+  },
+  "city_performance": {},
+  "calibration_status": {
+    "updated_at": "2026-11-02T15:31:46.093647+05:30",
+    "alpha": 0.15,
+    "max_clamp": 25.0
+  }
+}

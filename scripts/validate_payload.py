@@ -41,6 +41,22 @@ AIRSHED_SCHEMA = {
 }
 
 
+DRIFT_SUMMARY_SCHEMA = {
+    "type": "object",
+    "required": ["updated_at", "latest_mae", "latest_rmse", "history_30d",
+                 "psi_metrics", "city_performance", "calibration_status"],
+    "properties": {
+        "updated_at":          {"type": "string"},
+        "latest_mae":          {"type": "number"},
+        "latest_rmse":         {"type": "number"},
+        "history_30d":         {"type": "array"},
+        "psi_metrics":         {"type": "object"},
+        "city_performance":    {"type": "object"},
+        "calibration_status":  {"type": "object"}
+    }
+}
+
+
 def validate_payload(path, schema, name):
     with open(path) as f:
         data = json.load(f)
@@ -60,6 +76,11 @@ def main():
         sys.exit(1)
     if not validate_payload(airshed, AIRSHED_SCHEMA, "airshed_data.json"):
         sys.exit(1)
+
+    drift_summary = PROJECT_ROOT / "web_app" / "public" / "drift_summary.json"
+    if drift_summary.exists():
+        if not validate_payload(drift_summary, DRIFT_SUMMARY_SCHEMA, "drift_summary.json"):
+            sys.exit(1)
 
 
 if __name__ == "__main__":

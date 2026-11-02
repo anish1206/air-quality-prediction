@@ -4,6 +4,7 @@ import AirshedNetworkMap from './components/map/AirshedNetworkMap';
 import TimeController from './components/timeline/TimeController';
 import ForecastPanel from './components/forecast/ForecastPanel';
 import ControlPanel from './components/controls/ControlPanel';
+import DriftDashboardModal from './components/drift/DriftDashboardModal';
 import { useAirshedStore } from './store/airshedStore';
 import { fetchAirshedPayload } from './services/airshedApi';
 
@@ -12,6 +13,7 @@ export default function App() {
     payload, setPayload,
     isForecastPanelOpen, toggleForecastPanel,
     isLayerPanelOpen, toggleLayerPanel,
+    isDriftPanelOpen, toggleDriftPanel,
   } = useAirshedStore();
 
   const { data, isLoading, isError } = useQuery({
@@ -88,6 +90,23 @@ export default function App() {
           </svg>
           Forecast
         </button>
+
+        <button
+          type="button"
+          onClick={toggleDriftPanel}
+          title={isDriftPanelOpen ? 'Close drift dashboard' : 'Open model health & drift dashboard'}
+          className={`
+            flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium
+            border transition-all duration-200
+            ${isDriftPanelOpen
+              ? 'bg-[#064e3b] border-[#059669] text-white'
+              : 'bg-[#1a1a1a] border-[#2a2a2a] text-white hover:text-[#bbbbbb] hover:border-[#3a3a3a]'
+            }
+          `}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          Model Health
+        </button>
       </header>
 
       <ControlPanel />
@@ -95,6 +114,10 @@ export default function App() {
 
       {isForecastPanelOpen && payload && (
         <ForecastPanel payload={payload} onClose={toggleForecastPanel} />
+      )}
+
+      {isDriftPanelOpen && (
+        <DriftDashboardModal onClose={toggleDriftPanel} />
       )}
 
       {/* ── Status indicators (top-right) ── */}

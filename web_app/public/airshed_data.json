@@ -19034,5 +19034,6 @@
       "corridor_bearing_deg": 215.7,
       "transmission_type": "Synoptic_Sync"
     }
-  ]
+  ],
+  "model_version": "v4-dc35b0be"
 }

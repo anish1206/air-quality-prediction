@@ -15,6 +15,7 @@ interface AirshedState {
     layerVisibility: LayerVisibility;
     isForecastPanelOpen: boolean;
     isLayerPanelOpen: boolean;
+    isDriftPanelOpen: boolean;
 
     setPayload: (payload: AirshedNetworkPayload) => void;
     setCityId: (id: string) => void;
@@ -25,6 +26,7 @@ interface AirshedState {
     toggleLayer: (layer: keyof LayerVisibility) => void;
     toggleForecastPanel: () => void;
     toggleLayerPanel: () => void;
+    toggleDriftPanel: () => void;
 }
 
 export const useAirshedStore = create<AirshedState>((set) => ({
@@ -37,6 +39,7 @@ export const useAirshedStore = create<AirshedState>((set) => ({
     layerVisibility: { edges: true, pulses: true, plumes: true, pins: true, cloudField: false },
     isForecastPanelOpen: true,
     isLayerPanelOpen: true,
+    isDriftPanelOpen: false,
 
     setPayload: (payload) => set({ payload }),
     setCityId: (id) => set({ selectedCityId: id }),
@@ -58,5 +61,6 @@ export const useAirshedStore = create<AirshedState>((set) => ({
         })),
     toggleForecastPanel: () => set((state) => ({ isForecastPanelOpen: !state.isForecastPanelOpen })),
     toggleLayerPanel: () => set((state) => ({ isLayerPanelOpen: !state.isLayerPanelOpen })),
+    toggleDriftPanel: () => set((state) => ({ isDriftPanelOpen: !state.isDriftPanelOpen })),
 }));
 

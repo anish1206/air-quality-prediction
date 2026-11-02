@@ -187,9 +187,6 @@ export function renderWeatherLabField(
         return canvas;
     }
 
-    // Pre-compute cos(lat) for each station for longitude distance correction
-    const cosLats = entries.map(e => Math.cos(e.lat * Math.PI / 180));
-
     // Build scalar field + coverage mask via IDW
     const field = new Float32Array(GRID_W * GRID_H);
     const coverage = new Float32Array(GRID_W * GRID_H);

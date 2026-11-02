@@ -32,19 +32,21 @@ jobs:
 
       - name: Execute Airshed Inference Pipeline
         timeout-minutes: 12
-        run: python scripts/airshed_pipeline.py
+        run: |
+          python scripts/drift_engine.py
+          python scripts/airshed_pipeline.py
 
-      - name: Validate JSON Payload
+      - name: Validate JSON Payloads
         run: python scripts/validate_payload.py
 
       - name: Run Smoke Tests
         run: pytest tests/ -v --tb=short
 
-      - name: Commit and Push Updated Payload
+      - name: Commit and Push Updated Payload & Calibration
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add web_app/public/airshed_data.json
+          git add web_app/public/airshed_data.json web_app/public/drift_summary.json data/models/calibration_layer.json data/drift/
           git diff --cached --quiet && echo "No changes to commit." && exit 0
-          git commit -m "chore: auto-update airshed intelligence payload [skip ci]"
+          git commit -m "chore: auto-update airshed intelligence & calibration payload [skip ci]"
           git push

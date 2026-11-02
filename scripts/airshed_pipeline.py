@@ -35,6 +35,7 @@ CAUSAL_GRAPH_PATH = PROJECT_ROOT / "data" / "models" / "causal_graph.json"
 CASCADE_MODEL_PATH = PROJECT_ROOT / "data" / "models" / "cascade_predictor_v4.pkl"
 CLIMATOLOGY_PATH = PROJECT_ROOT / "data" / "models" / "pm25_climatology.json"
 EDGE_DELTAS_PATH = PROJECT_ROOT / "data" / "models" / "edge_severity_deltas.json"
+CALIBRATION_PATH = PROJECT_ROOT / "data" / "models" / "calibration_layer.json"
 OUTPUT_PATH = PROJECT_ROOT / "web_app" / "public" / "airshed_data.json"
 
 PIPELINE_VERSION = "2.0.0"
@@ -602,6 +603,26 @@ def export_payload(timesteps_data, cluster_metadata, causal_graph):
     for step_data in timesteps_data:
         for city_id, node_data in step_data["nodes"].items():
             node_data["cluster_id"] = cluster_id_map.get(city_id, 0)
+
+    # Apply Option B calibration layer to forecast steps if present
+    if CALIBRATION_PATH.exists():
+        try:
+            with open(CALIBRATION_PATH) as _cf:
+                _calib = json.load(_cf)
+            from scripts.drift_engine import apply_calibration
+            calib_count = 0
+            for step_data in timesteps_data:
+                if not step_data.get("is_observed", True):
+                    s_idx = step_data.get("step_index", 18)
+                    horizon_h = max(4, (s_idx - (PAST_DAYS * 6)) * 4)
+                    for city_id, node_data in step_data["nodes"].items():
+                        step_data["nodes"][city_id] = apply_calibration(
+                            city_id, node_data, horizon_hours=horizon_h, calibration=_calib
+                        )
+                        calib_count += 1
+            print(f"Applied Option B calibration adjustments across {calib_count} forecast nodes")
+        except Exception as _ce:
+            print(f"WARNING: Could not apply calibration layer: {_ce}")
 
     # Build final payload — generated_at is IST-aware
     payload = {
