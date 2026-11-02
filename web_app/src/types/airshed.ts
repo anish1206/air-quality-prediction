@@ -11,6 +11,7 @@ export type AirshedMetric = 'chhi_score' | 'us_aqi' | 'pm2_5' | 'nitrogen_dioxid
 export interface AirshedNetworkPayload {
     generated_at: string;
     forecast_horizon_hours: number;
+    staleness_max_hours?: number;
     time_steps: AirshedTimeStep[];
     clusters: AirshedClusterDefinition[];
     causal_edges: CausalNetworkEdge[];

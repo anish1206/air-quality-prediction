@@ -11,10 +11,10 @@ const METRICS: { key: AirshedMetric; label: string; sub: string }[] = [
 
 const LAYERS: { key: keyof import('../../types/airshed').LayerVisibility; label: string; desc: string }[] = [
     { key: 'cloudField', label: 'Cloud / Smog Field', desc: 'WeatherLab stepped threshold' },
-    { key: 'plumes',     label: 'Atmospheric Plumes',  desc: 'City halos + airshed envelopes' },
-    { key: 'edges',      label: 'Causal Edges',        desc: 'Transport streamlines' },
-    { key: 'pulses',     label: 'Cascade Pulses',      desc: 'Active pollution fronts' },
-    { key: 'pins',       label: 'Station Pins',        desc: 'City markers & labels' },
+    { key: 'plumes', label: 'Atmospheric Plumes', desc: 'City halos + airshed envelopes' },
+    { key: 'edges', label: 'Causal Edges', desc: 'Transport streamlines' },
+    { key: 'pulses', label: 'Cascade Pulses', desc: 'Active pollution fronts' },
+    { key: 'pins', label: 'Station Pins', desc: 'City markers & labels' },
 ];
 
 export default function ControlPanel() {

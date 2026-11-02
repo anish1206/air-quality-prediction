@@ -111,23 +111,53 @@ function WindArrow({ deg, size = 16 }: { deg: number; size?: number }) {
 }
 
 // ── ECharts generic line chart ────────────────────────────────────────────────
-const createLineChart = (
+// Pass an existing ECharts instance to update it in-place; omit to create fresh.
+const initOrUpdateLineChart = (
   el: HTMLDivElement,
   values: number[],
   unit: string,
   lineColor: string,
   activeIdx: number,
   allSlots: SubSlot[],
+  existing?: echarts.ECharts | null,
 ) => {
-  const existing = echarts.getInstanceByDom(el);
-  if (existing) existing.dispose();
-
   const xLabels = values.map((_, i) => {
     const day  = Math.floor(i / 6);
     const slot = i % 6;
     return slot === 0 ? `D${day - 3}` : SLOT_TIMES[slot];
   });
 
+  const seriesOption = [
+    {
+      type: 'line', data: values, smooth: true, symbol: 'none',
+      lineStyle: { color: lineColor, width: 2 },
+      itemStyle: { color: lineColor },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: `${lineColor}28` },
+          { offset: 1, color: `${lineColor}00` },
+        ]),
+      },
+      markLine: {
+        silent: true, symbol: 'none', label: { show: false },
+        data: [{ xAxis: activeIdx, lineStyle: { color: 'rgba(56,189,248,0.55)', type: 'solid', width: 1 } }],
+      },
+    },
+    {
+      type: 'scatter', data: [[activeIdx, values[activeIdx]]],
+      symbol: 'circle', symbolSize: 7,
+      itemStyle: { color: '#fff', borderColor: lineColor, borderWidth: 2 },
+      z: 10,
+    },
+  ];
+
+  // Fast path — just move the cursor marker and dot
+  if (existing && !existing.isDisposed()) {
+    existing.setOption({ series: seriesOption }, { replaceMerge: ['series'] });
+    return existing;
+  }
+
+  // Full init path
   const chart = echarts.init(el);
   chart.setOption({
     backgroundColor: 'transparent',
@@ -159,49 +189,69 @@ const createLineChart = (
       axisLabel: { color: '#777', fontSize: 10 },
       splitLine: { lineStyle: { color: '#333', type: 'dashed' } },
     },
-    series: [
-      {
-        type: 'line', data: values, smooth: true, symbol: 'none',
-        lineStyle: { color: lineColor, width: 2 },
-        itemStyle: { color: lineColor },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: `${lineColor}28` },
-            { offset: 1, color: `${lineColor}00` },
-          ]),
-        },
-        markLine: {
-          silent: true, symbol: 'none', label: { show: false },
-          data: [{ xAxis: activeIdx, lineStyle: { color: 'rgba(56,189,248,0.55)', type: 'solid', width: 1 } }],
-        },
-      },
-      {
-        type: 'scatter', data: [[activeIdx, values[activeIdx]]],
-        symbol: 'circle', symbolSize: 7,
-        itemStyle: { color: '#fff', borderColor: lineColor, borderWidth: 2 },
-        z: 10,
-      },
-    ],
+    series: seriesOption,
   });
-
   return chart;
 };
 
 // ── CHHI chart with hazard bands ──────────────────────────────────────────────
-const createChhiChart = (
+const initOrUpdateChhiChart = (
   el: HTMLDivElement,
   values: number[],
   activeIdx: number,
   allSlots: SubSlot[],
+  existing?: echarts.ECharts | null,
 ) => {
-  const existing = echarts.getInstanceByDom(el);
-  if (existing) existing.dispose();
-
   const xLabels = values.map((_, i) => {
     const slot = i % 6;
     return slot === 0 ? `D${Math.floor(i / 6) - 3}` : SLOT_TIMES[slot];
   });
 
+  const seriesOption = [
+    {
+      type: 'line', data: values, smooth: true, symbol: 'none',
+      lineStyle: { color: '#f97316', width: 2 },
+      itemStyle: { color: '#f97316' },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(249,115,22,0.22)' },
+          { offset: 1, color: 'rgba(249,115,22,0.01)' },
+        ]),
+      },
+      markArea: {
+        silent: true,
+        data: [
+          [{ yAxis: 0,  itemStyle: { color: 'rgba(16,185,129,0.05)'  } }, { yAxis: 25  }],
+          [{ yAxis: 25, itemStyle: { color: 'rgba(245,158,11,0.05)'  } }, { yAxis: 50  }],
+          [{ yAxis: 50, itemStyle: { color: 'rgba(249,115,22,0.06)'  } }, { yAxis: 75  }],
+          [{ yAxis: 75, itemStyle: { color: 'rgba(225,29,72,0.07)'   } }, { yAxis: 100 }],
+        ],
+      },
+      markLine: {
+        silent: true, symbol: 'none', label: { show: false },
+        data: [
+          { yAxis: 25,  lineStyle: { color: 'rgba(16,185,129,0.2)',  type: 'dashed', width: 1 } },
+          { yAxis: 50,  lineStyle: { color: 'rgba(245,158,11,0.2)',  type: 'dashed', width: 1 } },
+          { yAxis: 75,  lineStyle: { color: 'rgba(249,115,22,0.2)',  type: 'dashed', width: 1 } },
+          { xAxis: activeIdx, lineStyle: { color: 'rgba(56,189,248,0.55)', type: 'solid', width: 1 } },
+        ],
+      },
+    },
+    {
+      type: 'scatter', data: [[activeIdx, values[activeIdx]]],
+      symbol: 'circle', symbolSize: 7,
+      itemStyle: { color: '#fff', borderColor: '#f97316', borderWidth: 2 },
+      z: 10,
+    },
+  ];
+
+  // Fast path
+  if (existing && !existing.isDisposed()) {
+    existing.setOption({ series: seriesOption }, { replaceMerge: ['series'] });
+    return existing;
+  }
+
+  // Full init path
   const chart = echarts.init(el);
   chart.setOption({
     backgroundColor: 'transparent',
@@ -234,45 +284,8 @@ const createChhiChart = (
       axisLabel: { color: '#555', fontSize: 9 },
       splitLine: { lineStyle: { color: '#2a2a2a', type: 'dashed' } },
     },
-    series: [
-      {
-        type: 'line', data: values, smooth: true, symbol: 'none',
-        lineStyle: { color: '#f97316', width: 2 },
-        itemStyle: { color: '#f97316' },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(249,115,22,0.22)' },
-            { offset: 1, color: 'rgba(249,115,22,0.01)' },
-          ]),
-        },
-        markArea: {
-          silent: true,
-          data: [
-            [{ yAxis: 0,  itemStyle: { color: 'rgba(16,185,129,0.05)'  } }, { yAxis: 25  }],
-            [{ yAxis: 25, itemStyle: { color: 'rgba(245,158,11,0.05)'  } }, { yAxis: 50  }],
-            [{ yAxis: 50, itemStyle: { color: 'rgba(249,115,22,0.06)'  } }, { yAxis: 75  }],
-            [{ yAxis: 75, itemStyle: { color: 'rgba(225,29,72,0.07)'   } }, { yAxis: 100 }],
-          ],
-        },
-        markLine: {
-          silent: true, symbol: 'none', label: { show: false },
-          data: [
-            { yAxis: 25,  lineStyle: { color: 'rgba(16,185,129,0.2)',  type: 'dashed', width: 1 } },
-            { yAxis: 50,  lineStyle: { color: 'rgba(245,158,11,0.2)',  type: 'dashed', width: 1 } },
-            { yAxis: 75,  lineStyle: { color: 'rgba(249,115,22,0.2)',  type: 'dashed', width: 1 } },
-            { xAxis: activeIdx, lineStyle: { color: 'rgba(56,189,248,0.55)', type: 'solid', width: 1 } },
-          ],
-        },
-      },
-      {
-        type: 'scatter', data: [[activeIdx, values[activeIdx]]],
-        symbol: 'circle', symbolSize: 7,
-        itemStyle: { color: '#fff', borderColor: '#f97316', borderWidth: 2 },
-        z: 10,
-      },
-    ],
+    series: seriesOption,
   });
-
   return chart;
 };
 
@@ -282,6 +295,12 @@ export default function ForecastPanel({ payload, onClose }: Props) {
   const aqiChartRef  = useRef<HTMLDivElement>(null);
   const pm25ChartRef = useRef<HTMLDivElement>(null);
   const tempChartRef = useRef<HTMLDivElement>(null);
+
+  // Hold live ECharts instances so we can call setOption instead of reinit
+  const chhiChart = useRef<echarts.ECharts | null>(null);
+  const aqiChart  = useRef<echarts.ECharts | null>(null);
+  const pm25Chart = useRef<echarts.ECharts | null>(null);
+  const tempChart = useRef<echarts.ECharts | null>(null);
 
   const [isExpanded, setIsExpanded] = useState(false);
   const { selectedSubStep, setSubStep, setTimestamp, selectedCityId } = useAirshedStore();
@@ -303,33 +322,59 @@ export default function ForecastPanel({ payload, onClose }: Props) {
   const activeChhi = isDataAvail ? (activeSlot?.chhi_score ?? null) : null;
   const hazard     = getHazardLevel(activeChhi);
 
-  // ── Charts ────────────────────────────────────────────────────────────────
-  const initChart = (
-    ref: React.RefObject<HTMLDivElement | null>,
-    values: number[],
-    unit: string,
-    color: string,
-  ) => {
-    if (!ref.current || !allSlots.length) return;
-    const chart = createLineChart(ref.current, values, unit, color, selectedSubStep, allSlots);
-    const ro = new ResizeObserver(() => chart.resize());
-    ro.observe(ref.current);
-    return () => { ro.disconnect(); chart.dispose(); };
-  };
-
-  // CHHI chart
+  // ── Charts: full init when city (data) changes ────────────────────────────
   useEffect(() => {
-    if (!chhiChartElRef.current || !allSlots.length) return;
-    const values = allSlots.map((s) => s.chhi_score ?? 35);
-    const chart = createChhiChart(chhiChartElRef.current, values, selectedSubStep, allSlots);
-    const ro = new ResizeObserver(() => chart.resize());
-    ro.observe(chhiChartElRef.current);
-    return () => { ro.disconnect(); chart.dispose(); };
-  }, [data, selectedSubStep]);
+    if (!allSlots.length) return;
+    const chhiValues = allSlots.map((s) => s.chhi_score ?? 35);
 
-  useEffect(() => initChart(aqiChartRef,  allSlots.map((s) => s.us_aqi),  '',       '#42b7e8'), [data, selectedSubStep]);
-  useEffect(() => initChart(pm25ChartRef, allSlots.map((s) => s.pm2_5),   ' µg/m³', '#79c7a2'), [data, selectedSubStep]);
-  useEffect(() => initChart(tempChartRef, allSlots.map((s) => s.temp),    '°C',     '#e5a06f'), [data, selectedSubStep]);
+    if (chhiChartElRef.current) {
+      chhiChart.current?.dispose();
+      chhiChart.current = initOrUpdateChhiChart(chhiChartElRef.current, chhiValues, selectedSubStep, allSlots);
+      const ro = new ResizeObserver(() => chhiChart.current?.resize());
+      ro.observe(chhiChartElRef.current);
+    }
+    if (aqiChartRef.current) {
+      aqiChart.current?.dispose();
+      aqiChart.current = initOrUpdateLineChart(aqiChartRef.current, allSlots.map((s) => s.us_aqi), '', '#42b7e8', selectedSubStep, allSlots);
+      const ro = new ResizeObserver(() => aqiChart.current?.resize());
+      ro.observe(aqiChartRef.current);
+    }
+    if (pm25ChartRef.current) {
+      pm25Chart.current?.dispose();
+      pm25Chart.current = initOrUpdateLineChart(pm25ChartRef.current, allSlots.map((s) => s.pm2_5), ' µg/m³', '#79c7a2', selectedSubStep, allSlots);
+      const ro = new ResizeObserver(() => pm25Chart.current?.resize());
+      ro.observe(pm25ChartRef.current);
+    }
+    if (tempChartRef.current) {
+      tempChart.current?.dispose();
+      tempChart.current = initOrUpdateLineChart(tempChartRef.current, allSlots.map((s) => s.temp), '°C', '#e5a06f', selectedSubStep, allSlots);
+      const ro = new ResizeObserver(() => tempChart.current?.resize());
+      ro.observe(tempChartRef.current);
+    }
+    return () => {
+      chhiChart.current?.dispose(); chhiChart.current = null;
+      aqiChart.current?.dispose();  aqiChart.current  = null;
+      pm25Chart.current?.dispose(); pm25Chart.current = null;
+      tempChart.current?.dispose(); tempChart.current = null;
+    };
+  // Intentionally excludes selectedSubStep — cursor updates handled below
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
+  // ── Charts: cheap cursor update when step changes during playback ─────────
+  useEffect(() => {
+    if (!allSlots.length) return;
+    const chhiValues = allSlots.map((s) => s.chhi_score ?? 35);
+    if (chhiChartElRef.current && chhiChart.current)
+      initOrUpdateChhiChart(chhiChartElRef.current, chhiValues, selectedSubStep, allSlots, chhiChart.current);
+    if (aqiChartRef.current && aqiChart.current)
+      initOrUpdateLineChart(aqiChartRef.current, allSlots.map((s) => s.us_aqi), '', '#42b7e8', selectedSubStep, allSlots, aqiChart.current);
+    if (pm25ChartRef.current && pm25Chart.current)
+      initOrUpdateLineChart(pm25ChartRef.current, allSlots.map((s) => s.pm2_5), ' µg/m³', '#79c7a2', selectedSubStep, allSlots, pm25Chart.current);
+    if (tempChartRef.current && tempChart.current)
+      initOrUpdateLineChart(tempChartRef.current, allSlots.map((s) => s.temp), '°C', '#e5a06f', selectedSubStep, allSlots, tempChart.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSubStep]);
 
   const DividerRow = ({ left, children }: { left: React.ReactNode; children: React.ReactNode }) => (
     <div style={S.rowGrid} className="border-b border-[#252525]">

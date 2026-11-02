@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import AirshedNetworkMap from './components/map/AirshedNetworkMap';
 import TimeController from './components/timeline/TimeController';
@@ -23,6 +23,18 @@ export default function App() {
     if (data) setPayload(data);
   }, [data, setPayload]);
 
+  // ── Derived counts from loaded payload ────────────────────────────────────
+  const nodeCount   = useMemo(() => payload ? Object.keys(payload.time_steps[0]?.nodes ?? {}).length : 20, [payload]);
+  const regimeCount = useMemo(() => payload?.clusters.length ?? 4, [payload]);
+
+  // ── Staleness check ───────────────────────────────────────────────────────
+  const isStale = useMemo(() => {
+    if (!payload?.generated_at) return false;
+    const maxHours = payload.staleness_max_hours ?? 30;
+    const ageHours = (Date.now() - new Date(payload.generated_at).getTime()) / 3_600_000;
+    return ageHours > maxHours;
+  }, [payload]);
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#0a0a0a] font-sans select-none">
       <AirshedNetworkMap />
@@ -32,7 +44,7 @@ export default function App() {
           NAICEWS <span className="text-white/35">•</span> National Airshed Intelligence
         </h1>
         <span className="text-[12px] text-white px-2.5 py-1 rounded-full border border-[#2a2a2a] bg-[#161616]">
-          20 Nodes · 4 Regimes
+          {nodeCount} Nodes · {regimeCount} Regimes
         </span>
 
         <button
@@ -85,6 +97,7 @@ export default function App() {
         <ForecastPanel payload={payload} onClose={toggleForecastPanel} />
       )}
 
+      {/* ── Status indicators (top-right) ── */}
       {isLoading && (
         <div className="absolute top-4 right-4 z-20 bg-[#0e0e0e] border border-[#2a2a2a] px-3 py-1.5 rounded-full text-[10px] text-[#38bdf8] tracking-widest animate-pulse">
           Loading airshed intelligence…
@@ -93,6 +106,15 @@ export default function App() {
       {isError && (
         <div className="absolute top-4 right-4 z-20 bg-[#1e0a0a] border border-[#5c2a2a] text-[#f28b82] px-3 py-1.5 rounded-full text-[10px]">
           Failed to load airshed dataset
+        </div>
+      )}
+      {isStale && !isLoading && !isError && (
+        <div className="absolute top-4 right-4 z-20 bg-[#1e1500] border border-[#6b4c00] text-[#f59e0b] px-3 py-1.5 rounded-full text-[10px] flex items-center gap-1.5">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          Dataset may be stale — last updated {new Date(payload!.generated_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })} IST
         </div>
       )}
     </div>

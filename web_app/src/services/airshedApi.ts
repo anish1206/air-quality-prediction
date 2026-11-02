@@ -101,6 +101,7 @@ export const fetchAirshedPayload = async (): Promise<AirshedNetworkPayload> => {
   return {
     generated_at: raw.generated_at,
     forecast_horizon_hours: raw.forecast_horizon_hours,
+    staleness_max_hours: (raw as any).staleness_max_hours ?? 30,
     clusters: raw.clusters,
     causal_edges: raw.causal_edges,
     time_steps: raw.time_steps.map((step) => ({

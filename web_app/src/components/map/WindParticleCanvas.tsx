@@ -1,44 +1,35 @@
 /**
- * WindParticleCanvas — Windy / Earth Nullschool–style animated wind particle canvas overlay.
+ * WindParticleCanvas — animated wind-flow particle overlay.
  *
- * Mounts as a transparent canvas perfectly overlaid on the MapLibre canvas.
- * Renders faint translucent cyan streaks along interpolated wind vectors.
+ * Transparent canvas with faint neutral streaks advected by IDW-interpolated
+ * wind vectors. Uses destination-out compositing for trail fade so the canvas
+ * stays transparent and doesn't darken the basemap.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import type * as maplibregl from 'maplibre-gl';
 import type { CityNodeStatus } from '../../types/airshed';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-const N_PARTICLES = 1800;
+const N_PARTICLES = 1200;
 const LIFESPAN_MIN = 50;
 const LIFESPAN_MAX = 90;
-const SPEED_SCALE = 0.00048; // gentle atmospheric drift
-const PARTICLE_W = 1.4;
+const SPEED_SCALE = 0.00048;
+const PARTICLE_W = 1;
+const PARTICLE_ALPHA = 0.25;
 const INDIA_BOUNDS = { minLon: 66, maxLon: 98, minLat: 6, maxLat: 38 };
 
-// ── Speed-encoded color (WeatherLab style) ─────────────────────────────────
-// speed in m/s from wind_u / wind_v magnitude
-function windColor(speedMs: number): string {
-    // calm  < 4 m/s  → cyan
-    if (speedMs < 4)  return '56, 189, 248';   // #38bdf8
-    // moderate 4–10  → warm amber
-    if (speedMs < 10) return '251, 191,  36';   // #fbbf24
-    // strong  ≥ 10   → crimson
-    return '239,  68,  68';                     // #ef4444
-}
+// Neutral cyan-white so particles don't compete with severity band colours
+const PARTICLE_RGB = '200, 220, 230';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
 interface NodeWind { lon: number; lat: number; u: number; v: number }
 
 interface Particle {
-    x: number; y: number;     // screen coords
-    lon: number; lat: number; // geo coords
+    x: number; y: number;
+    lon: number; lat: number;
     life: number; maxLife: number;
     alpha: number;
 }
 
-// ── IDW Wind Interpolation ────────────────────────────────────────────────────
 function interpWind(
     lon: number, lat: number,
     nodes: NodeWind[],
@@ -52,7 +43,6 @@ function interpWind(
     return { u: uSum / wSum, v: vSum / wSum };
 }
 
-// ── Random point over India ───────────────────────────────────────────────────
 function randIndia(): { lon: number; lat: number } {
     return {
         lon: INDIA_BOUNDS.minLon + Math.random() * (INDIA_BOUNDS.maxLon - INDIA_BOUNDS.minLon),
@@ -60,18 +50,31 @@ function randIndia(): { lon: number; lat: number } {
     };
 }
 
-// ── Props ─────────────────────────────────────────────────────────────────────
 interface Props {
     mapInstance: maplibregl.Map | null;
     nodes: Record<string, CityNodeStatus>;
     visible: boolean;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
 export default function WindParticleCanvas({ mapInstance, nodes, visible }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rafRef = useRef<number>(0);
     const particles = useRef<Particle[]>([]);
+    const nodeWindsRef = useRef<NodeWind[]>([]);
+
+    // Update wind data in a ref so the animation loop picks up new values
+    // without tearing down and re-initialising all particles.
+    const updateWinds = useCallback((n: Record<string, CityNodeStatus>) => {
+        nodeWindsRef.current = Object.values(n).map((nd) => ({
+            lon: nd.longitude, lat: nd.latitude,
+            u: nd.wind_u ?? 0, v: nd.wind_v ?? 0,
+        }));
+    }, []);
+
+    // Sync wind data when nodes change, without re-running the main effect
+    useEffect(() => {
+        updateWinds(nodes);
+    }, [nodes, updateWinds]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -80,13 +83,9 @@ export default function WindParticleCanvas({ mapInstance, nodes, visible }: Prop
 
         const ctx = canvas.getContext('2d')!;
 
-        // Prepare node wind vectors
-        const nodeWinds: NodeWind[] = Object.values(nodes).map((n) => ({
-            lon: n.longitude, lat: n.latitude,
-            u: n.wind_u ?? 0, v: n.wind_v ?? 0,
-        }));
+        // Seed wind data on first mount
+        if (nodeWindsRef.current.length === 0) updateWinds(nodes);
 
-        // ── Resize canvas to match MapLibre container ──────────────────────────
         const resize = () => {
             const container = map.getContainer();
             canvas.width = container.clientWidth;
@@ -95,7 +94,6 @@ export default function WindParticleCanvas({ mapInstance, nodes, visible }: Prop
         resize();
         map.on('resize', resize);
 
-        // ── Initialise particles ───────────────────────────────────────────────
         const spawnParticle = (): Particle => {
             const { lon, lat } = randIndia();
             const pt = map.project([lon, lat] as [number, number]);
@@ -107,7 +105,6 @@ export default function WindParticleCanvas({ mapInstance, nodes, visible }: Prop
             for (let i = 0; i < N_PARTICLES; i++) particles.current.push(spawnParticle());
         }
 
-        // ── Animation loop ─────────────────────────────────────────────────────
         const frame = () => {
             if (!visible) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -115,23 +112,23 @@ export default function WindParticleCanvas({ mapInstance, nodes, visible }: Prop
                 return;
             }
 
-            // Trail fade effect
-            ctx.fillStyle = `rgba(10,10,10,0.06)`;
+            // Fade trails by erasing alpha, keeps canvas transparent
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillStyle = 'rgba(0,0,0,0.08)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.globalCompositeOperation = 'source-over';
 
             ctx.lineWidth = PARTICLE_W;
             ctx.lineCap = 'round';
 
+            const nodeWinds = nodeWindsRef.current;
+
             for (const p of particles.current) {
-                // Fade in/out over lifespan
                 const lifeRatio = p.life / p.maxLife;
                 p.alpha = Math.min(1, Math.sin(lifeRatio * Math.PI) * 0.9);
 
                 const { u, v } = interpWind(p.lon, p.lat, nodeWinds);
-                const speedMs = Math.sqrt(u * u + v * v);
-                const color = windColor(speedMs);
 
-                // Move in geo space
                 const dx = u * SPEED_SCALE;
                 const dy = -v * SPEED_SCALE;
 
@@ -141,7 +138,7 @@ export default function WindParticleCanvas({ mapInstance, nodes, visible }: Prop
                 const newPt = map.project([newLon, newLat]);
 
                 ctx.beginPath();
-                ctx.strokeStyle = `rgba(${color}, ${p.alpha * 0.35})`;
+                ctx.strokeStyle = `rgba(${PARTICLE_RGB}, ${p.alpha * PARTICLE_ALPHA})`;
                 ctx.moveTo(oldPt.x, oldPt.y);
                 ctx.lineTo(newPt.x, newPt.y);
                 ctx.stroke();
@@ -150,18 +147,15 @@ export default function WindParticleCanvas({ mapInstance, nodes, visible }: Prop
                 p.lat = newLat;
                 p.x = newPt.x;
                 p.y = newPt.y;
-
                 p.life += 1;
 
-                // Respawn if expired or out of bounds
                 if (
                     p.life >= p.maxLife ||
                     p.lon < INDIA_BOUNDS.minLon || p.lon > INDIA_BOUNDS.maxLon ||
                     p.lat < INDIA_BOUNDS.minLat || p.lat > INDIA_BOUNDS.maxLat ||
                     p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height
                 ) {
-                    const np = spawnParticle();
-                    Object.assign(p, np);
+                    Object.assign(p, spawnParticle());
                 }
             }
 
@@ -184,7 +178,9 @@ export default function WindParticleCanvas({ mapInstance, nodes, visible }: Prop
             map.off('resize', resize);
             map.off('move', onMapMove);
         };
-    }, [mapInstance, nodes, visible]);
+    // Intentionally excludes `nodes` — wind data syncs via the ref above
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mapInstance, visible]);
 
     useEffect(() => {
         if (!visible) {
@@ -201,7 +197,7 @@ export default function WindParticleCanvas({ mapInstance, nodes, visible }: Prop
         <canvas
             ref={canvasRef}
             className="absolute inset-0 pointer-events-none"
-            style={{ zIndex: 2, mixBlendMode: 'screen' }}
+            style={{ zIndex: 2 }}
         />
     );
 }

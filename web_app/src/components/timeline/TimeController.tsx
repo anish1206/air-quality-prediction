@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 import {
   useAirshedStore,
@@ -21,6 +21,26 @@ export default function TimeController({ forecastOpen = false, layerOpen = false
   const { selectedSubStep, setSubStep, selectedCityId, payload } = useAirshedStore();
   const [isPlaying, setIsPlaying] = useState(false);
 
+  // Keep a ref so the interval callback always sees the current step
+  // without being re-created on every step change (avoids stale closure).
+  const stepRef = useRef(selectedSubStep);
+  useEffect(() => { stepRef.current = selectedSubStep; }, [selectedSubStep]);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    const id = setInterval(() => {
+      const current = stepRef.current;
+      if (current >= TOTAL_STEPS - 1) {
+        setIsPlaying(false);
+        return;
+      }
+      setSubStep(current + 1);
+    }, 600);
+    return () => clearInterval(id);
+  // isPlaying is the only real trigger; setSubStep is a stable Zustand reference.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaying, setSubStep]);
+
   const dayOffset = stepToDayOffset(selectedSubStep);
   const slot = stepToSlot(selectedSubStep);
   const dayIdx = dayOffset + 3;
@@ -31,15 +51,6 @@ export default function TimeController({ forecastOpen = false, layerOpen = false
   const cascadeCount = step?.active_cascade_pulses.length ?? 0;
   const chhi = isAvailable ? (node?.chhi_score ?? null) : null;
   const hazard = getHazardStyle(chhi);
-
-  useEffect(() => {
-    if (!isPlaying) return;
-    const id = setInterval(() => {
-      setSubStep(Math.min(selectedSubStep + 1, TOTAL_STEPS - 1));
-      if (selectedSubStep >= TOTAL_STEPS - 1) setIsPlaying(false);
-    }, 600);
-    return () => clearInterval(id);
-  }, [isPlaying, selectedSubStep, setSubStep]);
 
   const fillPct = (selectedSubStep / (TOTAL_STEPS - 1)) * 100;
   const stamp = step ? `${step.date_formatted} • ${step.hour_ist} IST` : `${SLOT_TIMES[slot]} IST`;

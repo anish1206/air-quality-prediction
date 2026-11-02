@@ -451,6 +451,17 @@ def evaluate_cascade_triggers(cities_data, cities_metadata, causal_graph, timest
 
             if city_df is not None and not city_df.empty:
                 closest_idx = (city_df[time_col] - timestep).abs().idxmin()
+
+                # Guard: reject the match if the nearest row is more than one
+                # 4-hour bin away — this happens when Open-Meteo returns truncated
+                # data and idxmin() would otherwise silently latch onto a stale
+                # timestamp that is hours or days off.
+                _match_gap = abs(city_df.loc[closest_idx, time_col] - timestep)
+                if _match_gap > pd.Timedelta(hours=3):
+                    # Treat as no data — fall through to the null-emit block below.
+                    city_df = pd.DataFrame()
+
+            if city_df is not None and not city_df.empty:
                 row = city_df.loc[closest_idx]
 
                 pm25 = row.get('pm2_5')

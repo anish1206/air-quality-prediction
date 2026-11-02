@@ -18,6 +18,11 @@ import type { AirshedNetworkPayload, AirshedTimeStep, CityNodeStatus } from '../
 import { clusterColor } from '../../lib/airshedSelectors';
 import { createBezierStreamline, createClusterEnvelope } from '../../utils/geoSplines';
 import WindParticleCanvas from './WindParticleCanvas';
+import {
+    addWeatherLabLayer,
+    updateWeatherLabImage,
+    setWeatherLabVisibility,
+} from './WeatherLabRasterLayer';
 
 // ── GeoJSON helpers ───────────────────────────────────────────────────────────
 type FC = {
@@ -79,7 +84,7 @@ export function getSeverityColor(val: number, metric: string): { bg: string; bor
     // Fallback for US AQI / PM2.5 / NO2
     if (val > 150) return { bg: 'rgba(192, 0, 0, 0.85)', border: '#c00000' };
     if (val > 100) return { bg: 'rgba(230, 126, 34, 0.80)', border: '#e67e22' };
-    if (val > 50)  return { bg: 'rgba(243, 156, 18, 0.70)', border: '#f39c12' };
+    if (val > 50) return { bg: 'rgba(243, 156, 18, 0.70)', border: '#f39c12' };
     return { bg: 'rgba(39, 174, 96, 0.75)', border: '#27ae60' };
 }
 
@@ -90,37 +95,38 @@ export function getDynamicPlumeGeoJSON(currentStep: AirshedTimeStep, selectedMet
     const features = Object.entries(currentStep.nodes)
         .filter(([_, node]) => node.data_available !== false && node.pm2_5 !== null && node.pm2_5 !== undefined)
         .map(([cityId, node]) => {
-        // 1. Get the exact value for THIS specific time step
-        const val = Number(
-            node[selectedMetric as keyof CityNodeStatus] ??
-            (selectedMetric === 'nitrogen_dioxide' ? (node as any).no2 : 0) ??
-            0
-        );
+            // 1. Get the exact value for THIS specific time step
+            const val = Number(
+                node[selectedMetric as keyof CityNodeStatus] ??
+                (selectedMetric === 'nitrogen_dioxide' ? (node as any).no2 : 0) ??
+                0
+            );
 
-        // 2. Determine color and radius strictly based on this value
-        const { border } = getSeverityColor(val, selectedMetric);
-        const plumeRadius = val > 75 ? 55 : (val > 50 ? 42 : (val > 25 ? 30 : 20));
+            // 2. Determine color and radius strictly based on this value
+            const { border } = getSeverityColor(val, selectedMetric);
+            // Keep radii small at country zoom — they scale up via MapLibre zoom interpolation
+            const plumeRadius = val > 75 ? 16 : (val > 50 ? 12 : (val > 25 ? 9 : 6));
 
-        // 3. Shift coordinates downwind based on wind vectors
-        const windU = Number(node.wind_u || 0);
-        const windV = Number(node.wind_v || 0);
-        const offsetLng = node.longitude + (windU * 0.035);
-        const offsetLat = node.latitude + (windV * 0.035);
+            // 3. Shift coordinates downwind based on wind vectors
+            const windU = Number(node.wind_u || 0);
+            const windV = Number(node.wind_v || 0);
+            const offsetLng = node.longitude + (windU * 0.035);
+            const offsetLat = node.latitude + (windV * 0.035);
 
-        return {
-            type: 'Feature' as const,
-            geometry: {
-                type: 'Point' as const,
-                coordinates: [offsetLng, offsetLat] as [number, number],
-            },
-            properties: {
-                cityId,
-                val,
-                plume_color: border,
-                plume_radius: plumeRadius,
-            },
-        };
-    });
+            return {
+                type: 'Feature' as const,
+                geometry: {
+                    type: 'Point' as const,
+                    coordinates: [offsetLng, offsetLat] as [number, number],
+                },
+                properties: {
+                    cityId,
+                    val,
+                    plume_color: border,
+                    plume_radius: plumeRadius,
+                },
+            };
+        });
 
     return { type: 'FeatureCollection' as const, features };
 }
@@ -351,14 +357,16 @@ export default function AirshedNetworkMap() {
                 type: 'circle',
                 source: 'dynamic-plumes-source',
                 paint: {
-                    // Read directly from the feature properties calculated above!
                     'circle-color': ['get', 'plume_color'],
                     'circle-radius': [
                         'interpolate', ['linear'], ['zoom'],
                         4, ['get', 'plume_radius'],
-                        8, ['*', ['get', 'plume_radius'], 2.5],
+                        7, ['*', ['get', 'plume_radius'], 2.0],
+                        10, ['*', ['get', 'plume_radius'], 4.0],
                     ],
-                    'circle-opacity': 0.60,
+                    // Lower opacity so pins are always readable through the halo
+                    'circle-opacity': 0.28,
+                    'circle-blur': 0.6,
                 },
             });
 
@@ -383,6 +391,7 @@ export default function AirshedNetworkMap() {
             // ── Layer 3b: Conduit Status Badges ──────────────────────────────────
             instance.addLayer({
                 id: 'edge-badge-labels', type: 'symbol', source: 'edge-badges',
+                minzoom: 7,
                 layout: {
                     'text-field': ['get', 'badgeText'],
                     'text-size': 9,
@@ -397,25 +406,51 @@ export default function AirshedNetworkMap() {
                 },
             });
 
+            // ── Layer 4 (base): WeatherLab cloud/smog raster — sits BELOW pins ────
+            // Registered here so all pin/label layers draw on top of it.
+            addWeatherLabLayer(instance);
+
             // ── Layer 4: Station Pins & Badges ────────────────────────────────────
             instance.addLayer({
                 id: 'pin-rings', type: 'circle', source: 'pins',
                 paint: {
-                    'circle-radius': ['case', ['==', ['get', 'severityClass'], 2], 16, ['case', ['==', ['get', 'severityClass'], 1], 11, 6]],
+                    'circle-radius': 6,
                     'circle-color': 'rgba(0,0,0,0)',
-                    'circle-stroke-width': 1.8,
+                    'circle-stroke-width': 1,
                     'circle-stroke-color': ['get', 'ring'],
                     'circle-opacity': 0,
-                    'circle-stroke-opacity': 0.85,
+                    'circle-stroke-opacity': 0.50,
                 },
             });
             instance.addLayer({
                 id: 'pin-cores', type: 'circle', source: 'pins',
                 paint: {
-                    'circle-radius': 5.5,
+                    'circle-radius': 4,
                     'circle-color': ['get', 'color'],
-                    'circle-stroke-width': 1.5,
-                    'circle-stroke-color': '#0a0a0a',
+                    'circle-stroke-width': 1,
+                    'circle-stroke-color': '#1a1a1a',
+                },
+            });
+            // ── Value badge — shows the metric number floating above the dot ────────
+            instance.addLayer({
+                id: 'pin-values', type: 'symbol', source: 'pins',
+                minzoom: 5,
+                layout: {
+                    'text-field': ['case', ['==', ['get', 'data_available'], 1],
+                        ['to-string', ['get', 'value']],
+                        '—',
+                    ],
+                    'text-size': 10,
+                    'text-offset': [0, -1.4],
+                    'text-anchor': 'bottom',
+                    'text-font': ['Noto Sans Bold'],
+                    'text-allow-overlap': false,
+                    'text-ignore-placement': false,
+                },
+                paint: {
+                    'text-color': ['get', 'color'],
+                    'text-halo-color': '#060606',
+                    'text-halo-width': 1.8,
                 },
             });
             instance.addLayer({
@@ -461,14 +496,9 @@ export default function AirshedNetworkMap() {
                 pulseT.current += 0.042;
                 const t = pulseT.current;
                 if (instance.getLayer('edges-core')) {
-                    instance.setPaintProperty('edges-core', 'line-opacity', 0.25 + 0.12 * Math.sin(t));
-                    instance.setPaintProperty('pin-rings', 'circle-radius', [
-                        'case', ['==', ['get', 'trigger'], 1],
-                        14 + 3 * (0.5 + 0.5 * Math.sin(t * 1.6)),
-                        10 + 2 * (0.5 + 0.5 * Math.sin(t)),
-                    ]);
+                    instance.setPaintProperty('edges-core', 'line-opacity', 0.25 + 0.10 * Math.sin(t));
                     instance.setPaintProperty('cascade-pulses', 'circle-radius',
-                        3.5 + 1.5 * (0.5 + 0.5 * Math.sin(t * 2)));
+                        3 + 1 * (0.5 + 0.5 * Math.sin(t * 2)));
                 }
                 raf.current = requestAnimationFrame(tick);
             };
@@ -525,11 +555,15 @@ export default function AirshedNetworkMap() {
         if (!currentStep) return;
 
         const updatePlumes = () => {
-            const source = map.current?.getSource('dynamic-plumes-source') as maplibregl.GeoJSONSource | undefined;
+            const instance = map.current;
+            if (!instance) return;
+            const source = instance.getSource('dynamic-plumes-source') as maplibregl.GeoJSONSource | undefined;
             if (source) {
-                // Dynamically update the plume data on every timeline tick!
                 source.setData(getDynamicPlumeGeoJSON(currentStep, selectedMetric));
             }
+            // Always update the WeatherLab raster so it's fresh when toggled on,
+            // regardless of whether the layer is currently visible.
+            updateWeatherLabImage(instance, currentStep.nodes, selectedMetric);
         };
 
         if (map.current.isStyleLoaded() && map.current.getSource('dynamic-plumes-source')) {
@@ -548,7 +582,11 @@ export default function AirshedNetworkMap() {
         };
         const plumesVisible = layerVisibility.plumes && (layerVisibility.cloudField ?? true);
         vis('dynamic-plumes-layer', plumesVisible);
-        vis('plume-ambient-layer', plumesVisible);
+        // When cloudField is toggled on, push a fresh render immediately
+        if (layerVisibility.cloudField && step) {
+            updateWeatherLabImage(instance, step.nodes, selectedMetric);
+        }
+        setWeatherLabVisibility(instance, layerVisibility.cloudField ?? false);
         vis('edges-glow', layerVisibility.edges);
         vis('edges-core', layerVisibility.edges);
         vis('edge-badge-labels', layerVisibility.edges);
@@ -557,8 +595,9 @@ export default function AirshedNetworkMap() {
         vis('envelope-glow', layerVisibility.plumes);
         vis('pin-rings', layerVisibility.pins);
         vis('pin-cores', layerVisibility.pins);
+        vis('pin-values', layerVisibility.pins);
         vis('pin-labels', layerVisibility.pins);
-    }, [layerVisibility]);
+    }, [layerVisibility, step, selectedMetric]);
 
     // ── Selected city marker ──────────────────────────────────────────────────
     useEffect(() => {
@@ -574,9 +613,8 @@ export default function AirshedNetworkMap() {
 
         const el = document.createElement('div');
         el.style.cssText = `
-      width: 24px; height: 24px; border-radius: 999px;
+      width: 18px; height: 18px; border-radius: 999px;
       border: 2px solid ${sev.border};
-
       background: transparent;
       pointer-events: none;
     `;
