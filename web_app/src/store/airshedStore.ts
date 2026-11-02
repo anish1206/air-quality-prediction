@@ -59,8 +59,16 @@ export const useAirshedStore = create<AirshedState>((set) => ({
         set((state) => ({
             layerVisibility: { ...state.layerVisibility, [layer]: !state.layerVisibility[layer] },
         })),
-    toggleForecastPanel: () => set((state) => ({ isForecastPanelOpen: !state.isForecastPanelOpen })),
+    toggleForecastPanel: () =>
+        set((state) => ({
+            isForecastPanelOpen: !state.isForecastPanelOpen,
+            isDriftPanelOpen: !state.isForecastPanelOpen ? false : state.isDriftPanelOpen,
+        })),
     toggleLayerPanel: () => set((state) => ({ isLayerPanelOpen: !state.isLayerPanelOpen })),
-    toggleDriftPanel: () => set((state) => ({ isDriftPanelOpen: !state.isDriftPanelOpen })),
+    toggleDriftPanel: () =>
+        set((state) => ({
+            isDriftPanelOpen: !state.isDriftPanelOpen,
+            isForecastPanelOpen: !state.isDriftPanelOpen ? false : state.isForecastPanelOpen,
+        })),
 }));
 
