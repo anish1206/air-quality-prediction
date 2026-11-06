@@ -104,7 +104,6 @@ export default function App() {
             }
           `}
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
           Model Health
         </button>
       </header>

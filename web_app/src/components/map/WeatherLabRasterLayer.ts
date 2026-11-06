@@ -261,20 +261,6 @@ export function renderWeatherLabField(
     return canvas;
 }
 
-// ── Blob URL management (faster than toDataURL) ──────────────────────────────
-let _prevUrl: string | null = null;
-
-function canvasToBlobUrl(canvas: HTMLCanvasElement): Promise<string> {
-    return new Promise((resolve) => {
-        canvas.toBlob((blob) => {
-            if (_prevUrl) URL.revokeObjectURL(_prevUrl);
-            const url = URL.createObjectURL(blob!);
-            _prevUrl = url;
-            resolve(url);
-        }, 'image/png');
-    });
-}
-
 // ── MapLibre integration ──────────────────────────────────────────────────────
 export function addWeatherLabLayer(map: maplibregl.Map): void {
     if (map.getSource(SOURCE_ID)) return;
@@ -302,31 +288,24 @@ export function addWeatherLabLayer(map: maplibregl.Map): void {
         paint: {
             'raster-opacity': 0.85,
             'raster-resampling': STYLE_MODE === 'radar' ? 'nearest' : 'linear',
-            'raster-fade-duration': 300,
+            'raster-fade-duration': 0,
         },
     }, beforeId);
 }
-
-// Debounce timer for update calls
-let _updateTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function updateWeatherLabImage(
     map: maplibregl.Map,
     nodes: Record<string, CityNodeStatus>,
     metric: string,
 ): void {
-    if (_updateTimer) clearTimeout(_updateTimer);
-    _updateTimer = setTimeout(() => {
-        const src = map.getSource(SOURCE_ID) as maplibregl.ImageSource | undefined;
-        if (!src) return;
+    const src = map.getSource(SOURCE_ID) as maplibregl.ImageSource | undefined;
+    if (!src) return;
 
-        const canvas = renderWeatherLabField(nodes, metric);
-        if (!canvas) return;
+    const canvas = renderWeatherLabField(nodes, metric);
+    if (!canvas) return;
 
-        canvasToBlobUrl(canvas).then((url) => {
-            src.updateImage({ url, coordinates: WEATHERLAB_COORDS });
-        });
-    }, 150);
+    const url = canvas.toDataURL('image/png');
+    src.updateImage({ url, coordinates: WEATHERLAB_COORDS });
 }
 
 export function setWeatherLabVisibility(map: maplibregl.Map, visible: boolean): void {

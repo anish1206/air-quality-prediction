@@ -3,7 +3,7 @@
  *
  * Layers (bottom → top):
  *  1. Cluster Envelopes     — smoothed convex-hull basin polygons per airshed regime
- *  2. Dynamic Plumes        — soft Gaussian radial fadeout plumes advected by wind vectors
+ *  2. WeatherLab Raster     — IDW-interpolated regional pollution field
  *  3. Bézier Transport      — clean curved streamlines with midpoint ETA badges
  *  4. Station Pins & Badges — visual triage pins, breathing hazard rings & text pills
  *  5. Cascade Pulses        — animated particles along active causal edges
@@ -88,49 +88,6 @@ export function getSeverityColor(val: number, metric: string): { bg: string; bor
     return { bg: 'rgba(39, 174, 96, 0.75)', border: '#27ae60' };
 }
 
-// Helper function to build dynamic GeoJSON for the ACTIVE time step
-export function getDynamicPlumeGeoJSON(currentStep: AirshedTimeStep, selectedMetric: string) {
-    if (!currentStep || !currentStep.nodes) return { type: 'FeatureCollection' as const, features: [] };
-
-    const features = Object.entries(currentStep.nodes)
-        .filter(([_, node]) => node.data_available !== false && node.pm2_5 !== null && node.pm2_5 !== undefined)
-        .map(([cityId, node]) => {
-            // 1. Get the exact value for THIS specific time step
-            const val = Number(
-                node[selectedMetric as keyof CityNodeStatus] ??
-                (selectedMetric === 'nitrogen_dioxide' ? (node as any).no2 : 0) ??
-                0
-            );
-
-            // 2. Determine color and radius strictly based on this value
-            const { border } = getSeverityColor(val, selectedMetric);
-            // Keep radii small at country zoom — they scale up via MapLibre zoom interpolation
-            const plumeRadius = val > 75 ? 16 : (val > 50 ? 12 : (val > 25 ? 9 : 6));
-
-            // 3. Shift coordinates downwind based on wind vectors
-            const windU = Number(node.wind_u || 0);
-            const windV = Number(node.wind_v || 0);
-            const offsetLng = node.longitude + (windU * 0.035);
-            const offsetLat = node.latitude + (windV * 0.035);
-
-            return {
-                type: 'Feature' as const,
-                geometry: {
-                    type: 'Point' as const,
-                    coordinates: [offsetLng, offsetLat] as [number, number],
-                },
-                properties: {
-                    cityId,
-                    val,
-                    plume_color: border,
-                    plume_radius: plumeRadius,
-                },
-            };
-        });
-
-    return { type: 'FeatureCollection' as const, features };
-}
-
 // ── Layer builder ─────────────────────────────────────────────────────────────
 const buildLayers = (
     payload: AirshedNetworkPayload,
@@ -164,6 +121,7 @@ const buildLayers = (
                     cluster_id: cid,
                     fill: hexToRgba(col, 0.08),
                     stroke: hexToRgba(col, 0.35),
+                    color: col,
                     active: clusterFilter === cid ? 1 : 0,
                 },
                 geometry: { type: 'Polygon', coordinates: [ring] },
@@ -323,11 +281,6 @@ export default function AirshedNetworkMap() {
         instance.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
 
         instance.on('load', () => {
-            const initialStep = payload?.time_steps[selectedSubStep] ?? payload?.time_steps[0];
-            instance.addSource('dynamic-plumes-source', {
-                type: 'geojson',
-                data: initialStep ? (getDynamicPlumeGeoJSON(initialStep, selectedMetric) as never) : emptyFC(),
-            });
             instance.addSource('envelopes', { type: 'geojson', data: emptyFC() });
             instance.addSource('edges', { type: 'geojson', data: emptyFC() });
             instance.addSource('edge-badges', { type: 'geojson', data: emptyFC() });
@@ -351,26 +304,7 @@ export default function AirshedNetworkMap() {
                 },
             });
 
-            // ── Layer 2: Station-Anchored Dynamic Atmospheric Plumes ──────────────
-            instance.addLayer({
-                id: 'dynamic-plumes-layer',
-                type: 'circle',
-                source: 'dynamic-plumes-source',
-                paint: {
-                    'circle-color': ['get', 'plume_color'],
-                    'circle-radius': [
-                        'interpolate', ['linear'], ['zoom'],
-                        4, ['get', 'plume_radius'],
-                        7, ['*', ['get', 'plume_radius'], 2.0],
-                        10, ['*', ['get', 'plume_radius'], 4.0],
-                    ],
-                    // Lower opacity so pins are always readable through the halo
-                    'circle-opacity': 0.28,
-                    'circle-blur': 0.6,
-                },
-            });
-
-            // ── Layer 3: Bézier Streamlines ───────────────────────────────────────
+            // ── Layer 2: Bézier Streamlines ───────────────────────────────────────
             instance.addLayer({
                 id: 'edges-glow', type: 'line', source: 'edges',
                 paint: {
@@ -545,33 +479,18 @@ export default function AirshedNetworkMap() {
         return () => { instance.off('load', onLoad); };
     }, [geo]);
 
-    // ── Hook reactivity to the timeline & metric (dynamic plume updates) ─────
-    const data = payload;
-
+    // ── Timeline reactivity (WeatherLab raster update) ────────────────────────
     useEffect(() => {
-        if (!map.current || !data?.time_steps) return;
+        if (!map.current || !payload?.time_steps) return;
 
-        const currentStep = data.time_steps[selectedSubStep];
+        const currentStep = payload.time_steps[selectedSubStep];
         if (!currentStep) return;
 
-        const updatePlumes = () => {
-            const instance = map.current;
-            if (!instance) return;
-            const source = instance.getSource('dynamic-plumes-source') as maplibregl.GeoJSONSource | undefined;
-            if (source) {
-                source.setData(getDynamicPlumeGeoJSON(currentStep, selectedMetric));
-            }
-            // Always update the WeatherLab raster so it's fresh when toggled on,
-            // regardless of whether the layer is currently visible.
-            updateWeatherLabImage(instance, currentStep.nodes, selectedMetric);
-        };
-
-        if (map.current.isStyleLoaded() && map.current.getSource('dynamic-plumes-source')) {
-            updatePlumes();
-        } else {
-            map.current.once('load', updatePlumes);
+        // Only update the WeatherLab raster when cloud field is visible and style is loaded
+        if (layerVisibility.cloudField && map.current.isStyleLoaded()) {
+            updateWeatherLabImage(map.current, currentStep.nodes, selectedMetric);
         }
-    }, [selectedSubStep, selectedMetric, data]);
+    }, [selectedSubStep, selectedMetric, payload, layerVisibility.cloudField]);
 
     // ── Layer visibility ──────────────────────────────────────────────────────
     useEffect(() => {
@@ -580,13 +499,13 @@ export default function AirshedNetworkMap() {
         const vis = (id: string, on: boolean) => {
             if (instance.getLayer(id)) instance.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
         };
-        const plumesVisible = layerVisibility.plumes && (layerVisibility.cloudField ?? true);
-        vis('dynamic-plumes-layer', plumesVisible);
+
         // When cloudField is toggled on, push a fresh render immediately
         if (layerVisibility.cloudField && step) {
             updateWeatherLabImage(instance, step.nodes, selectedMetric);
         }
         setWeatherLabVisibility(instance, layerVisibility.cloudField ?? false);
+
         vis('edges-glow', layerVisibility.edges);
         vis('edges-core', layerVisibility.edges);
         vis('edge-badge-labels', layerVisibility.edges);
