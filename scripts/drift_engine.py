@@ -66,13 +66,26 @@ def archive_forecast_snapshot(payload, archive_dir=None):
     return snapshot_path
 
 
+def to_tz_naive(ts_input):
+    """Normalize any timestamp string or object into a timezone-naive pd.Timestamp."""
+    if ts_input is None:
+        return None
+    try:
+        t = pd.Timestamp(ts_input)
+        if t.tzinfo is not None:
+            t = t.tz_localize(None)
+        return t
+    except Exception:
+        return None
+
+
 def align_forecast_with_actuals(forecast_snapshot, actual_payload):
     """
     Aligns historical forecast steps against newly observed actuals matching
     exact timestamps and city IDs within a 3-hour tolerance window.
     Returns a list of residual records.
     """
-    gen_time = pd.Timestamp(forecast_snapshot.get("generated_at", "2000-01-01"))
+    gen_time = to_tz_naive(forecast_snapshot.get("generated_at", "2000-01-01"))
     forecast_steps = forecast_snapshot.get("forecast_steps", [])
     actual_steps = [
         s for s in actual_payload.get("time_steps", [])
@@ -82,16 +95,13 @@ def align_forecast_with_actuals(forecast_snapshot, actual_payload):
     # Map actual steps by approximate timestamp
     actual_map = {}
     for a_step in actual_steps:
-        # Determine step timestamp
         t_val = a_step.get("timestamp_iso")
         if not t_val:
-            # Reconstruct from date_formatted and hour_ist if missing
             t_str = f"{a_step.get('date_formatted')} {a_step.get('hour_ist')}"
-            try:
-                t_val = pd.to_datetime(t_str)
-            except Exception:
-                continue
-        actual_map[pd.Timestamp(t_val)] = a_step
+            t_val = t_str
+        act_ts = to_tz_naive(t_val)
+        if act_ts is not None:
+            actual_map[act_ts] = a_step
 
     aligned_records = []
 
@@ -99,11 +109,10 @@ def align_forecast_with_actuals(forecast_snapshot, actual_payload):
         t_val = f_step.get("timestamp_iso")
         if not t_val:
             t_str = f"{f_step.get('date_formatted')} {f_step.get('hour_ist')}"
-            try:
-                t_val = pd.to_datetime(t_str)
-            except Exception:
-                continue
-        f_ts = pd.Timestamp(t_val)
+            t_val = t_str
+        f_ts = to_tz_naive(t_val)
+        if f_ts is None:
+            continue
 
         # Find closest actual step within 3 hours
         matched_act_step = None
@@ -118,7 +127,7 @@ def align_forecast_with_actuals(forecast_snapshot, actual_payload):
             continue
 
         # Horizon hours between forecast generation and target step
-        horizon_hours = max(4, int(round((f_ts - gen_time).total_seconds() / 3600)))
+        horizon_hours = max(4, int(round((f_ts - gen_time).total_seconds() / 3600))) if gen_time is not None else 24
 
         f_nodes = f_step.get("nodes", {})
         a_nodes = matched_act_step.get("nodes", {})
@@ -368,13 +377,23 @@ def run_drift_pipeline():
     snapshots = sorted(list(archive_dir.glob("*_forecast.json"))) if archive_dir.exists() else []
 
     residuals = []
-    if snapshots:
-        latest_snapshot_path = snapshots[-1]
-        print(f"Loading past forecast snapshot: {latest_snapshot_path.name}")
-        with open(latest_snapshot_path) as f:
-            past_snapshot = json.load(f)
-        residuals = align_forecast_with_actuals(past_snapshot, current_payload)
-        print(f"Aligned {len(residuals)} city-timestep predictions with current actuals")
+    # Find past snapshots that have forecast predictions overlapping observed actuals
+    for snap_path in snapshots:
+        try:
+            with open(snap_path) as f:
+                past_snapshot = json.load(f)
+            # Only consider snapshots generated before the current payload was produced
+            snap_gen = to_tz_naive(past_snapshot.get("generated_at"))
+            curr_gen = to_tz_naive(current_payload.get("generated_at"))
+            if snap_gen and curr_gen and snap_gen >= curr_gen:
+                continue
+            aligned = align_forecast_with_actuals(past_snapshot, current_payload)
+            if aligned:
+                print(f"Loading past forecast snapshot: {snap_path.name}")
+                print(f"Aligned {len(aligned)} city-timestep predictions with current actuals")
+                residuals.extend(aligned)
+        except Exception as e:
+            print(f"Warning reading snapshot {snap_path.name}: {e}")
 
     # 2. Compute metrics
     if residuals:
@@ -415,16 +434,6 @@ def run_drift_pipeline():
     baseline_pm25 = np.random.normal(loc=85.0, scale=35.0, size=1000)
     psi_pm25 = compute_psi(baseline_pm25, live_pm25) if live_pm25 else 0.0
 
-    log_entry = {
-        "date": datetime.now(tz=IST).strftime("%Y-%m-%d"),
-        "timestamp": datetime.now(tz=IST).isoformat(),
-        "overall_mae": overall_mae,
-        "overall_rmse": overall_rmse,
-        "overall_bias": overall_bias,
-        "psi": {"source_pm25_t": round(psi_pm25, 4)},
-        "city_mae": city_mae_avg
-    }
-
     # 4. Update Option B calibration layer
     calibration = update_calibration_layer(residuals, calibration_path=DEFAULT_CALIBRATION_PATH)
     print(f"Calibration layer updated at {DEFAULT_CALIBRATION_PATH}")
@@ -434,9 +443,62 @@ def run_drift_pipeline():
     print(f"Archived new forecast snapshot: {new_snapshot.name}")
 
     # 6. Append to log & export summary
+    existing_dates = set()
     DEFAULT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if DEFAULT_LOG_PATH.exists():
+        with open(DEFAULT_LOG_PATH) as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        rec = json.loads(line.strip())
+                        if "date" in rec:
+                            existing_dates.add(rec["date"])
+                    except Exception:
+                        pass
+
     with open(DEFAULT_LOG_PATH, "a") as f:
-        f.write(json.dumps(log_entry) + "\n")
+        if residuals:
+            by_date = {}
+            for r in residuals:
+                d_str = str(r.get("target_time", ""))[:10]
+                if d_str:
+                    by_date.setdefault(d_str, []).append(r)
+
+            for d_str in sorted(by_date.keys()):
+                if d_str not in existing_dates:
+                    d_recs = by_date[d_str]
+                    d_maes = [r["abs_error"] for r in d_recs]
+                    d_biases = [r["error"] for r in d_recs]
+                    d_rmses = [r["error"] ** 2 for r in d_recs]
+
+                    c_mae = {}
+                    for r in d_recs:
+                        c_mae.setdefault(r["city_id"], []).append(r["abs_error"])
+
+                    date_entry = {
+                        "date": d_str,
+                        "timestamp": f"{d_str}T18:30:00+05:30",
+                        "overall_mae": round(float(np.mean(d_maes)), 2),
+                        "overall_rmse": round(float(np.sqrt(np.mean(d_rmses))), 2),
+                        "overall_bias": round(float(np.mean(d_biases)), 2),
+                        "psi": {"source_pm25_t": round(psi_pm25, 4)},
+                        "city_mae": {cid: round(float(np.mean(v)), 2) for cid, v in c_mae.items()}
+                    }
+                    f.write(json.dumps(date_entry) + "\n")
+                    existing_dates.add(d_str)
+
+        today_str = datetime.now(tz=IST).strftime("%Y-%m-%d")
+        if today_str not in existing_dates:
+            log_entry = {
+                "date": today_str,
+                "timestamp": datetime.now(tz=IST).isoformat(),
+                "overall_mae": overall_mae,
+                "overall_rmse": overall_rmse,
+                "overall_bias": overall_bias,
+                "psi": {"source_pm25_t": round(psi_pm25, 4)},
+                "city_mae": city_mae_avg
+            }
+            f.write(json.dumps(log_entry) + "\n")
 
     log_records = []
     if DEFAULT_LOG_PATH.exists():

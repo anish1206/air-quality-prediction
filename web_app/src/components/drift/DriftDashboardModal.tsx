@@ -56,16 +56,16 @@ export default function DriftDashboardModal({ onClose }: Props) {
       grid: {
         top: 28,
         left: 42,
-        right: 12,
+        right: 18,
         bottom: 24,
       },
       xAxis: {
         type: 'category',
         data: dates.length ? dates : ['Initial Epoch'],
-        boundaryGap: false,
+        boundaryGap: true,
         axisLine: { lineStyle: { color: '#303030' } },
         axisTick: { show: false },
-        axisLabel: { color: '#666', fontSize: 9, fontFamily: 'monospace' },
+        axisLabel: { color: '#888', fontSize: 9, fontFamily: 'monospace' },
         splitLine: { show: true, lineStyle: { color: '#202020', type: 'solid' } },
       },
       yAxis: {
@@ -81,7 +81,9 @@ export default function DriftDashboardModal({ onClose }: Props) {
           type: 'line',
           data: maes.length ? maes : [0],
           smooth: true,
-          symbol: 'none',
+          showSymbol: true,
+          symbol: 'circle',
+          symbolSize: 6,
           lineStyle: { color: '#38bdf8', width: 2 },
           itemStyle: { color: '#38bdf8' },
           areaStyle: {
@@ -96,7 +98,9 @@ export default function DriftDashboardModal({ onClose }: Props) {
           type: 'line',
           data: rmses.length ? rmses : [0],
           smooth: true,
-          symbol: 'none',
+          showSymbol: true,
+          symbol: 'circle',
+          symbolSize: 5,
           lineStyle: { color: '#f43f5e', width: 1.5, type: 'dashed' },
           itemStyle: { color: '#f43f5e' },
         },
@@ -105,14 +109,17 @@ export default function DriftDashboardModal({ onClose }: Props) {
           type: 'line',
           data: biases.length ? biases : [0],
           smooth: true,
-          symbol: 'none',
+          showSymbol: true,
+          symbol: 'circle',
+          symbolSize: 5,
           lineStyle: { color: '#f59e0b', width: 1.5 },
           itemStyle: { color: '#f59e0b' },
         },
       ],
     };
 
-    chartInstance.current.setOption(option);
+    chartInstance.current.setOption(option, true);
+    chartInstance.current.resize();
 
     const handleResize = () => chartInstance.current?.resize();
     window.addEventListener('resize', handleResize);
@@ -121,6 +128,14 @@ export default function DriftDashboardModal({ onClose }: Props) {
       window.removeEventListener('resize', handleResize);
     };
   }, [data]);
+
+  // Resize chart when expanded / collapsed
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      chartInstance.current?.resize();
+    }, 310);
+    return () => clearTimeout(timer);
+  }, [isExpanded]);
 
   const psiVal = data?.psi_metrics?.source_pm25_t ?? 0.0;
   const isPsiStable = psiVal < 0.1;

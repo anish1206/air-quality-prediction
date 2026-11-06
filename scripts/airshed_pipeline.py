@@ -663,6 +663,14 @@ def export_payload(timesteps_data, cluster_metadata, causal_graph):
     print(f"  Clusters: {len(cluster_metadata)}")
     print(f"  Causal edges: {len(causal_graph['edges'])}")
 
+    # Trigger drift evaluation and snapshot archiving
+    try:
+        from scripts.drift_engine import run_drift_pipeline
+        print("\nTriggering operational drift evaluation & forecast snapshot archiving...")
+        run_drift_pipeline()
+    except Exception as _de:
+        print(f"WARNING: Drift feedback loop execution failed: {_de}")
+
 
 def main():
     """Main execution function."""

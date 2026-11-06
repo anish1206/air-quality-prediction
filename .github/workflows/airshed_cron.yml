@@ -33,8 +33,8 @@ jobs:
       - name: Execute Airshed Inference Pipeline
         timeout-minutes: 12
         run: |
-          python scripts/drift_engine.py
           python scripts/airshed_pipeline.py
+          python scripts/drift_engine.py
 
       - name: Validate JSON Payloads
         run: python scripts/validate_payload.py
