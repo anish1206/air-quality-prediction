@@ -32,7 +32,7 @@ except ImportError:
 CITIES_METADATA_PATH = PROJECT_ROOT / "data" / "raw" / "cities_metadata.json"
 CLUSTER_METADATA_PATH = PROJECT_ROOT / "data" / "processed" / "airshed_clusters.json"
 CAUSAL_GRAPH_PATH = PROJECT_ROOT / "data" / "models" / "causal_graph.json"
-CASCADE_MODEL_PATH = PROJECT_ROOT / "data" / "models" / "cascade_predictor_v4.pkl"
+CASCADE_MODEL_PATH = PROJECT_ROOT / "data" / "models" / "cascade_predictor.pkl"
 CLIMATOLOGY_PATH = PROJECT_ROOT / "data" / "models" / "pm25_climatology.json"
 EDGE_DELTAS_PATH = PROJECT_ROOT / "data" / "models" / "edge_severity_deltas.json"
 CALIBRATION_PATH = PROJECT_ROOT / "data" / "models" / "calibration_layer.json"
@@ -45,7 +45,7 @@ def _get_model_version(model_path):
     """Compute a short hash of the model file for version tracking."""
     if model_path.exists():
         h = hashlib.md5(model_path.read_bytes()).hexdigest()[:8]
-        return f"v4-{h}"
+        return f"cascade-{h}"
     return "heuristic"
 
 # API Endpoints
@@ -90,7 +90,7 @@ def load_artifacts():
         except Exception as e:
             print(f"WARNING: Could not load cascade model: {e} — falling back to heuristic")
     else:
-        print(f"WARNING: cascade_predictor_v4.pkl not found at {CASCADE_MODEL_PATH} "
+        print(f"WARNING: cascade_predictor.pkl not found at {CASCADE_MODEL_PATH} "
               f"— using heuristic confidence")
 
     # Load seasonal PM2.5 climatology for anomaly z-scores
@@ -706,7 +706,7 @@ def main():
             city_df = resample_to_4h(city_df)
             city_df = compute_wind_vectors(city_df)
 
-            # Rename 'time' → 'time_4h' so cascade_inference feature builder finds it
+            # Rename 'time' to 'time_4h' so the cascade feature builder finds it
             if 'time' in city_df.columns and 'time_4h' not in city_df.columns:
                 city_df = city_df.rename(columns={"time": "time_4h"})
 

@@ -47,7 +47,7 @@ export default function DriftDashboardModal({ onClose }: Props) {
       },
       legend: {
         data: ['MAE (µg/m³)', 'RMSE (µg/m³)', 'Mean Bias (µg/m³)'],
-        textStyle: { color: '#8a8a8a', fontSize: 10, fontFamily: 'monospace' },
+        textStyle: { color: '#b8b8b8', fontSize: 10, fontFamily: 'monospace' },
         top: 0,
         right: 8,
         itemWidth: 14,
@@ -65,14 +65,14 @@ export default function DriftDashboardModal({ onClose }: Props) {
         boundaryGap: true,
         axisLine: { lineStyle: { color: '#303030' } },
         axisTick: { show: false },
-        axisLabel: { color: '#888', fontSize: 9, fontFamily: 'monospace' },
+        axisLabel: { color: '#b0b0b0', fontSize: 9, fontFamily: 'monospace' },
         splitLine: { show: true, lineStyle: { color: '#202020', type: 'solid' } },
       },
       yAxis: {
         type: 'value',
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { color: '#777', fontSize: 10, fontFamily: 'monospace' },
+        axisLabel: { color: '#a8a8a8', fontSize: 10, fontFamily: 'monospace' },
         splitLine: { lineStyle: { color: '#252525', type: 'dashed' } },
       },
       series: [
@@ -148,6 +148,13 @@ export default function DriftDashboardModal({ onClose }: Props) {
     ? new Date(data.updated_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
     : '—';
 
+  const history = data?.history_30d ?? [];
+  const historyDays = history.length;
+  const lastRecordDate = historyDays
+    ? new Date(history[historyDays - 1].date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : null;
+  const cityCount = Object.keys(CITY_META).length;
+
   return (
     <aside
       style={{ width: isExpanded ? `${CONTENT_W}px` : `${COLLAPSED_W}px` }}
@@ -170,10 +177,10 @@ export default function DriftDashboardModal({ onClose }: Props) {
           </div>
           <div className="min-w-0 overflow-hidden">
             <div className="text-[16px] font-medium tracking-[-0.1px] text-white truncate">
-              Model Health &amp; Drift Intelligence
+              Model Health &amp; Drift
             </div>
-            <div className="mt-[2px] text-[11px] text-[#8a8a8a] truncate font-mono">
-              Evaluated {updatedDateStr} · {updatedTimeStr} IST &nbsp;·&nbsp; Option B Adaptive Calibration
+            <div className="mt-[2px] text-[11px] text-[#c4c4c4] truncate font-mono">
+              Calibration updated {updatedDateStr} · {updatedTimeStr} IST
             </div>
           </div>
         </div>
@@ -182,7 +189,7 @@ export default function DriftDashboardModal({ onClose }: Props) {
           <button
             type="button"
             onClick={() => setIsExpanded((v) => !v)}
-            className="text-[#777] transition hover:text-white"
+            className="text-[#b8b8b8] transition hover:text-white"
             title={isExpanded ? 'Collapse' : 'Expand'}
           >
             {isExpanded ? (
@@ -204,7 +211,7 @@ export default function DriftDashboardModal({ onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="text-[#777] transition hover:text-white"
+            className="text-[#b8b8b8] transition hover:text-white"
             title="Close"
           >
             <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -222,85 +229,59 @@ export default function DriftDashboardModal({ onClose }: Props) {
       >
         <div style={{ width: `${CONTENT_W}px`, minHeight: '100%', position: 'relative' }}>
           <div className="relative z-10 px-5 pb-8">
-            {/* ── Top Status Badges (matching ForecastPanel regime tag style) ── */}
-            <div className="mt-4 mb-3 flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-white/50">
-                Calibration Regime
-              </span>
-              <span
-                className="text-[10px] px-2.5 py-1 rounded-full border"
-                style={{
-                  color: '#38bdf8',
-                  borderColor: 'rgba(56,189,248,0.35)',
-                  background: 'rgba(56,189,248,0.08)',
-                }}
-              >
-                Option B · EWMA α = {data?.calibration_status?.alpha ?? 0.15}
-              </span>
-              <span className="text-[10px] font-mono text-white/40">
-                CLAMP: ±{data?.calibration_status?.max_clamp ?? 25.0} µg/m³
-              </span>
-              <span
-                className={`text-[10px] px-2.5 py-0.5 rounded-full border font-mono tracking-wide ${
-                  isPsiStable
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-                    : isPsiWarning
-                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
-                    : 'border-rose-500/40 bg-rose-500/10 text-rose-400'
-                }`}
-              >
-                PSI: {psiVal.toFixed(3)} {isPsiStable ? '(STABLE)' : isPsiWarning ? '(DRIFT WARNING)' : '(ACTION REQUIRED)'}
-              </span>
+            {/* ── Calibration parameters (plain meta line) ── */}
+            <div className="mt-4 mb-4 font-mono text-[10px] text-white/75">
+              Adaptive bias correction · EWMA α {data?.calibration_status?.alpha ?? 0.15} · clamp
+              ±{data?.calibration_status?.max_clamp ?? 25.0} µg/m³
             </div>
 
-            {/* ── Information / Advisory Banner (matching ForecastPanel cascade advisory banner) ── */}
-            <div className="mb-4 rounded-[12px] border border-[#1769d1]/40 bg-[#1769d1]/10 px-3 py-2.5 text-[11px] leading-relaxed">
-              <span className="font-semibold text-[#38bdf8]">FEEDBACK LOOP:</span>
-              <span className="text-white/85">
-                {' '}Forecasts are archived prior to each daily update. Residual errors (pred − obs) update per-city additive biases to dynamically adjust next-day predictions: <code className="text-[#38bdf8] font-mono">PM2.5_cal = max(5.0, PM2.5_raw - Bias)</code>.
-              </span>
+            {/* ── How the calibration works ── */}
+            <div className="mb-5 rounded-[12px] border border-[#1769d1]/40 bg-[#1769d1]/10 px-3 py-2.5 text-[11px] leading-relaxed text-white/85">
+              Each day's forecast is archived before the next update. The prediction error for every city
+              becomes an additive bias that adjusts the following forecast:{' '}
+              <code className="text-[#38bdf8] font-mono">PM2.5_cal = max(5.0, PM2.5_raw − Bias)</code>.
             </div>
 
-            {/* ── Section Title: Telemetry Grid ── */}
+            {/* ── Section Title: Metrics ── */}
             <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.16em] text-white">
-              Telemetry · 7-Day Performance &amp; Stability
+              Latest Error Metrics{lastRecordDate ? ` · ${lastRecordDate}` : ''}
             </div>
 
             {/* ── Key Metrics Grid (styled like ForecastPanel dataGrid) ── */}
-            <div className="grid grid-cols-4 border border-[#252525] rounded-[14px] bg-[#0c0c0c] mb-6 overflow-hidden">
+            <div className="grid grid-cols-4 border border-[#252525] rounded-[9px] bg-[#0c0c0c] mb-6 overflow-hidden">
               <div className="p-3 border-r border-[#252525]">
-                <div className="text-[10px] font-mono text-white/50 uppercase tracking-wider">Rolling 7D MAE</div>
+                <div className="text-[10px] font-mono text-white/75 uppercase tracking-wider">Latest MAE</div>
                 <div className="mt-1 text-[20px] font-mono font-medium text-white">
                   {data ? data.latest_mae.toFixed(1) : '—'}{' '}
-                  <span className="text-[10px] text-white/40 font-normal">µg/m³</span>
+                  <span className="text-[10px] text-white/65 font-normal">µg/m³</span>
                 </div>
-                <div className="text-[9px] font-mono text-[#10b981] mt-0.5">Target &lt; 15.0</div>
+                <div className="text-[9px] font-mono text-white/60 mt-0.5">Mean absolute error</div>
               </div>
 
               <div className="p-3 border-r border-[#252525]">
-                <div className="text-[10px] font-mono text-white/50 uppercase tracking-wider">Rolling RMSE</div>
+                <div className="text-[10px] font-mono text-white/75 uppercase tracking-wider">Latest RMSE</div>
                 <div className="mt-1 text-[20px] font-mono font-medium text-white">
                   {data ? data.latest_rmse.toFixed(1) : '—'}{' '}
-                  <span className="text-[10px] text-white/40 font-normal">µg/m³</span>
+                  <span className="text-[10px] text-white/65 font-normal">µg/m³</span>
                 </div>
-                <div className="text-[9px] font-mono text-white/30 mt-0.5">L2 Penalty</div>
+                <div className="text-[9px] font-mono text-white/60 mt-0.5">Root mean square error</div>
               </div>
 
               <div className="p-3 border-r border-[#252525]">
-                <div className="text-[10px] font-mono text-white/50 uppercase tracking-wider">Mean Pred. Bias</div>
+                <div className="text-[10px] font-mono text-white/75 uppercase tracking-wider">Prediction Bias</div>
                 <div className="mt-1 text-[20px] font-mono font-medium">
                   <span className={data && data.latest_bias > 0 ? 'text-[#f59e0b]' : 'text-[#38bdf8]'}>
                     {data ? (data.latest_bias > 0 ? `+${data.latest_bias.toFixed(1)}` : data.latest_bias.toFixed(1)) : '—'}
                   </span>{' '}
-                  <span className="text-[10px] text-white/40 font-normal">µg/m³</span>
+                  <span className="text-[10px] text-white/65 font-normal">µg/m³</span>
                 </div>
-                <div className="text-[9px] font-mono text-white/30 mt-0.5">
-                  {data && data.latest_bias > 0 ? 'Overpredicting' : 'Underpredicting'}
+                <div className="text-[9px] font-mono text-white/60 mt-0.5">
+                  {data ? (data.latest_bias > 0 ? 'Overpredicting' : data.latest_bias < 0 ? 'Underpredicting' : 'Unbiased') : '—'}
                 </div>
               </div>
 
               <div className="p-3">
-                <div className="text-[10px] font-mono text-white/50 uppercase tracking-wider">Distribution PSI</div>
+                <div className="text-[10px] font-mono text-white/75 uppercase tracking-wider">PSI · PM2.5</div>
                 <div
                   className={`mt-1 text-[20px] font-mono font-medium ${
                     isPsiStable ? 'text-[#10b981]' : isPsiWarning ? 'text-[#f59e0b]' : 'text-[#e11d48]'
@@ -308,37 +289,40 @@ export default function DriftDashboardModal({ onClose }: Props) {
                 >
                   {psiVal.toFixed(3)}
                 </div>
-                <div className="text-[9px] font-mono text-white/30 mt-0.5">
-                  {isPsiStable ? 'Stable (<0.1)' : 'Shift Detected'}
+                <div className="text-[9px] font-mono text-white/60 mt-0.5">
+                  {isPsiStable
+                    ? 'Stable (< 0.1)'
+                    : isPsiWarning
+                    ? 'Drift warning (0.1–0.2)'
+                    : 'Shift detected (≥ 0.2)'}
                 </div>
               </div>
             </div>
 
             {/* ── Section Title: Error Residuals Chart ── */}
-            <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.16em] text-white flex items-center justify-between">
-              <span>Forecast Error Residuals · 30-Day Trajectory</span>
-              <span className="text-[10px] font-mono text-[#8a8a8a]">Historical Window</span>
+            <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.16em] text-white">
+              Forecast Error · Last {historyDays || '—'} {historyDays === 1 ? 'Day' : 'Days'}
             </div>
 
             {/* ── ECharts Container ── */}
-            <div className="rounded-[14px] border border-[#252525] bg-[#0c0c0c] p-3 mb-6">
+            <div className="rounded-[9px] border border-[#252525] bg-[#0c0c0c] p-3 mb-6">
               <div ref={chartRef} className="w-full h-[200px]" />
             </div>
 
             {/* ── Section Title: Per-City Active Calibration Table ── */}
             <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.16em] text-white flex items-center justify-between">
-              <span>Per-Station Residual Calibration · Current Offsets</span>
-              <span className="text-[10px] font-mono text-[#8a8a8a]">20 Monitoring Stations</span>
+              <span>Current Bias Offsets by City</span>
+              <span className="text-[10px] font-mono text-[#c4c4c4]">{cityCount} cities</span>
             </div>
 
             {/* ── Data Grid Table (matching ForecastPanel layout) ── */}
-            <div className="border border-[#252525] rounded-[14px] bg-[#0c0c0c] overflow-hidden">
+            <div className="border border-[#252525] rounded-[9px] bg-[#0c0c0c] overflow-hidden">
               {/* Header */}
-              <div className="grid grid-cols-12 border-b border-[#252525] px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-white/50">
-                <div className="col-span-4">Station / City</div>
-                <div className="col-span-3">Airshed Corridor</div>
+              <div className="grid grid-cols-12 border-b border-[#252525] px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-white/75">
+                <div className="col-span-4">City</div>
+                <div className="col-span-3">State</div>
                 <div className="col-span-2 text-right">Avg MAE</div>
-                <div className="col-span-3 text-right">Active Bias Offset</div>
+                <div className="col-span-3 text-right">Bias Offset</div>
               </div>
 
               {/* Rows */}
@@ -354,32 +338,28 @@ export default function DriftDashboardModal({ onClose }: Props) {
                       className="grid grid-cols-12 px-3 py-2 text-[11px] items-center hover:bg-white/[0.02] transition"
                     >
                       <div className="col-span-4 flex items-center gap-2">
-                        <span className="font-mono text-white/50 text-[10px]">{cid}</span>
+                        <span className="font-mono text-white/75 text-[10px]">{cid}</span>
                         <span className="text-white font-medium truncate">{meta.name}</span>
                       </div>
 
                       <div className="col-span-3 flex items-center">
-                        <span className="text-[10px] font-mono text-white/50 truncate">
+                        <span className="text-[10px] font-mono text-white/75 truncate">
                           {meta.state}
                         </span>
                       </div>
 
-                      <div className="col-span-2 text-right font-mono text-white/70">
-                        {mae > 0 ? `${mae.toFixed(1)}` : '0.0'}
+                      <div className="col-span-2 text-right font-mono text-white/85">
+                        {mae > 0 ? mae.toFixed(1) : '—'}
                       </div>
 
                       <div className="col-span-3 text-right font-mono font-medium">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] ${
-                            bias > 0
-                              ? 'text-[#f59e0b] bg-[#f59e0b]/10'
-                              : bias < 0
-                              ? 'text-[#38bdf8] bg-[#38bdf8]/10'
-                              : 'text-white/40'
-                          }`}
-                        >
-                          {bias > 0 ? `+${bias.toFixed(1)} µg/m³` : bias < 0 ? `${bias.toFixed(1)} µg/m³` : '0.0 µg/m³'}
-                        </span>
+                        {perf ? (
+                          <span className={bias > 0 ? 'text-[#f59e0b]' : bias < 0 ? 'text-[#38bdf8]' : 'text-white/65'}>
+                            {bias > 0 ? `+${bias.toFixed(1)}` : bias.toFixed(1)} µg/m³
+                          </span>
+                        ) : (
+                          <span className="text-white/65">—</span>
+                        )}
                       </div>
                     </div>
                   );

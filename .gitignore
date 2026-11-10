@@ -3,12 +3,19 @@
 .claude
 brag-output
 
+# Python runtime
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# HTTP caches
+.cache*.sqlite*
+
 # Large model files
-data/aqi_forecast_model.pkl
 *.pkl
-!data/models/cascade_predictor_v4.pkl
+!data/models/*.pkl
 *.h5
 *.pt
 *.pth
 .idea/
-.cache_live.sqlite*
+web_app/dist/
