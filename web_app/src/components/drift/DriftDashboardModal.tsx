@@ -255,7 +255,7 @@ export default function DriftDashboardModal({ onClose }: Props) {
 
             {/* ── Information / Advisory Banner (matching ForecastPanel cascade advisory banner) ── */}
             <div className="mb-4 rounded-[12px] border border-[#1769d1]/40 bg-[#1769d1]/10 px-3 py-2.5 text-[11px] leading-relaxed">
-              <span className="font-semibold text-[#38bdf8]">ℹ️ FEEDBACK LOOP:</span>
+              <span className="font-semibold text-[#38bdf8]">FEEDBACK LOOP:</span>
               <span className="text-white/85">
                 {' '}Forecasts are archived prior to each daily update. Residual errors (pred − obs) update per-city additive biases to dynamically adjust next-day predictions: <code className="text-[#38bdf8] font-mono">PM2.5_cal = max(5.0, PM2.5_raw - Bias)</code>.
               </span>
