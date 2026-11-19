@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-11-18T06:40:06.917738+05:30",
-  "latest_mae": 11.23,
-  "latest_rmse": 18.13,
-  "latest_bias": -7.98,
+  "updated_at": "2026-11-19T06:12:22.388960+05:30",
+  "latest_mae": 0.0,
+  "latest_rmse": 0.0,
+  "latest_bias": 0.0,
   "history_30d": [
     {
       "date": "2026-11-02",
@@ -448,10 +448,21 @@
         "JAI": 10.09,
         "KNP": 12.41
       }
+    },
+    {
+      "date": "2026-11-19",
+      "timestamp": "2026-11-19T06:12:21.905522+05:30",
+      "overall_mae": 0.0,
+      "overall_rmse": 0.0,
+      "overall_bias": 0.0,
+      "psi": {
+        "source_pm25_t": 0.0
+      },
+      "city_mae": {}
     }
   ],
   "psi_metrics": {
-    "source_pm25_t": 0.6536
+    "source_pm25_t": 0.0
   },
   "city_performance": {
     "DEL": {
@@ -536,7 +547,7 @@
     }
   },
   "calibration_status": {
-    "updated_at": "2026-11-18T06:40:06.898556+05:30",
+    "updated_at": "2026-11-19T06:12:22.378700+05:30",
     "alpha": 0.15,
     "max_clamp": 25.0
   }

@@ -1,7 +1,7 @@
 # NAICEWS — National Airshed Intelligence & Cascade Early-Warning System
 
 PM2.5 forecasting and cross-city pollution-transport ("cascade") alerting for 20
-Indian cities, with a self-correcting drift-monitoring and adaptive-calibration
+Indian cities, with a self-correcting drift-monitoring and adaptive-callibration
 layer
 
 ```mermaid
