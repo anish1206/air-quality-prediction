@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-11-19T06:12:22.388960+05:30",
-  "latest_mae": 0.0,
-  "latest_rmse": 0.0,
-  "latest_bias": 0.0,
+  "updated_at": "2026-11-20T06:17:51.092582+05:30",
+  "latest_mae": 13.32,
+  "latest_rmse": 18.95,
+  "latest_bias": -9.61,
   "history_30d": [
     {
       "date": "2026-11-02",
@@ -459,95 +459,127 @@
         "source_pm25_t": 0.0
       },
       "city_mae": {}
+    },
+    {
+      "date": "2026-11-20",
+      "timestamp": "2026-11-20T06:17:50.578407+05:30",
+      "overall_mae": 13.32,
+      "overall_rmse": 18.95,
+      "overall_bias": -9.61,
+      "psi": {
+        "source_pm25_t": 0.4872
+      },
+      "city_mae": {
+        "DEL": 9.11,
+        "AGR": 12.7,
+        "KNP": 15.16,
+        "LKO": 16.05,
+        "VAR": 23.06,
+        "PAT": 38.48,
+        "PUN": 10.01,
+        "NSK": 9.68,
+        "CSN": 6.94,
+        "NAG": 11.26,
+        "BHO": 12.0,
+        "IND": 10.0,
+        "AHM": 12.14,
+        "BOM": 9.72,
+        "SUR": 11.52,
+        "HYD": 6.63,
+        "BLR": 6.48,
+        "MAA": 15.74,
+        "JAI": 14.46,
+        "KOL": 30.39
+      }
     }
   ],
   "psi_metrics": {
-    "source_pm25_t": 0.0
+    "source_pm25_t": 0.4872
   },
   "city_performance": {
     "DEL": {
-      "avg_mae": 22.66,
-      "current_bias": -2.79
-    },
-    "AGR": {
-      "avg_mae": 34.51,
-      "current_bias": -13.23
-    },
-    "KNP": {
-      "avg_mae": 29.12,
-      "current_bias": -7.43
-    },
-    "LKO": {
-      "avg_mae": 29.55,
-      "current_bias": -10.3
-    },
-    "VAR": {
-      "avg_mae": 24.72,
-      "current_bias": -14.41
-    },
-    "PAT": {
-      "avg_mae": 24.46,
-      "current_bias": -10.93
-    },
-    "KOL": {
-      "avg_mae": 22.63,
-      "current_bias": -9.54
-    },
-    "PUN": {
-      "avg_mae": 8.99,
-      "current_bias": -3.89
-    },
-    "NSK": {
-      "avg_mae": 5.96,
-      "current_bias": -0.71
-    },
-    "CSN": {
-      "avg_mae": 6.1,
-      "current_bias": -1.41
-    },
-    "NAG": {
-      "avg_mae": 10.42,
-      "current_bias": -0.3
-    },
-    "BHO": {
-      "avg_mae": 7.43,
-      "current_bias": -2.17
-    },
-    "IND": {
-      "avg_mae": 7.04,
-      "current_bias": -2.45
-    },
-    "AHM": {
-      "avg_mae": 4.82,
+      "avg_mae": 21.75,
       "current_bias": -2.2
     },
+    "AGR": {
+      "avg_mae": 32.95,
+      "current_bias": -9.74
+    },
+    "KNP": {
+      "avg_mae": 27.95,
+      "current_bias": -7.97
+    },
+    "LKO": {
+      "avg_mae": 28.59,
+      "current_bias": -10.26
+    },
+    "VAR": {
+      "avg_mae": 24.6,
+      "current_bias": -12.67
+    },
+    "PAT": {
+      "avg_mae": 25.46,
+      "current_bias": -9.83
+    },
+    "KOL": {
+      "avg_mae": 23.23,
+      "current_bias": -3.49
+    },
+    "PUN": {
+      "avg_mae": 9.05,
+      "current_bias": -4.13
+    },
+    "NSK": {
+      "avg_mae": 6.2,
+      "current_bias": -2.39
+    },
+    "CSN": {
+      "avg_mae": 6.15,
+      "current_bias": -1.23
+    },
+    "NAG": {
+      "avg_mae": 10.48,
+      "current_bias": -2.04
+    },
+    "BHO": {
+      "avg_mae": 7.74,
+      "current_bias": -3.15
+    },
+    "IND": {
+      "avg_mae": 7.24,
+      "current_bias": -2.64
+    },
+    "AHM": {
+      "avg_mae": 5.31,
+      "current_bias": -3.68
+    },
     "BOM": {
-      "avg_mae": 9.34,
-      "current_bias": -3.63
+      "avg_mae": 9.36,
+      "current_bias": -2.59
     },
     "SUR": {
-      "avg_mae": 11.26,
-      "current_bias": -5.17
+      "avg_mae": 11.29,
+      "current_bias": -5.8
     },
     "HYD": {
-      "avg_mae": 4.11,
-      "current_bias": 0.06
+      "avg_mae": 4.27,
+      "current_bias": -1.38
     },
     "BLR": {
-      "avg_mae": 6.39,
-      "current_bias": 0.55
+      "avg_mae": 6.4,
+      "current_bias": -0.58
     },
     "MAA": {
-      "avg_mae": 3.85,
-      "current_bias": -0.11
+      "avg_mae": 4.64,
+      "current_bias": -1.79
     },
     "JAI": {
-      "avg_mae": 9.5,
-      "current_bias": 0.67
+      "avg_mae": 9.83,
+      "current_bias": -1.66
     }
   },
   "calibration_status": {
-    "updated_at": "2026-11-19T06:12:22.378700+05:30",
+    "updated_at": "2026-11-20T06:17:51.081632+05:30",
     "alpha": 0.15,
     "max_clamp": 25.0
   }
