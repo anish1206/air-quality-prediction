@@ -1,8 +1,8 @@
 {
-  "updated_at": "2026-11-22T05:02:31.053793+05:30",
-  "latest_mae": 15.34,
-  "latest_rmse": 22.92,
-  "latest_bias": -0.8,
+  "updated_at": "2026-11-23T05:16:18.910040+05:30",
+  "latest_mae": 0.0,
+  "latest_rmse": 0.0,
+  "latest_bias": 0.0,
   "history_30d": [
     {
       "date": "2026-11-02",
@@ -554,10 +554,21 @@
         "VAR": 30.46,
         "PAT": 49.28
       }
+    },
+    {
+      "date": "2026-11-23",
+      "timestamp": "2026-11-23T05:16:18.364651+05:30",
+      "overall_mae": 0.0,
+      "overall_rmse": 0.0,
+      "overall_bias": 0.0,
+      "psi": {
+        "source_pm25_t": 0.0
+      },
+      "city_mae": {}
     }
   ],
   "psi_metrics": {
-    "source_pm25_t": 0.7752
+    "source_pm25_t": 0.0
   },
   "city_performance": {
     "DEL": {
@@ -642,7 +653,7 @@
     }
   },
   "calibration_status": {
-    "updated_at": "2026-11-22T05:02:31.036842+05:30",
+    "updated_at": "2026-11-23T05:16:18.899189+05:30",
     "alpha": 0.15,
     "max_clamp": 25.0
   }
